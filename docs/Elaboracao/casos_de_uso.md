@@ -35,7 +35,13 @@ O ator <strong>Responsável</strong> é uma especialização de <strong>Atleta</
 
 ## Diagrama de Casos de Uso
 
-### Versão 1.0
+### Versão 1.1
+
+<p align="justify">
+Com 17 casos de uso e 5 atores, um único diagrama concentrando todas as associações resulta em muitas linhas cruzadas, prejudicando a leitura. Por isso, o diagrama foi dividido em uma <strong>visão geral</strong>, agrupando os casos de uso por área funcional, e em <strong>quatro diagramas detalhados</strong>, um por área, mantendo apenas os atores e relacionamentos relevantes a cada um.
+</p>
+
+#### Visão geral 
 
 ```plantuml
 @startuml
@@ -44,6 +50,8 @@ skinparam packageStyle rectangle
 skinparam monochrome true
 skinparam shadowing false
 skinparam defaultFontName Roboto
+skinparam nodesep 50
+skinparam ranksep 70
 
 actor Atleta
 actor Responsável
@@ -53,70 +61,193 @@ actor Administrador
 
 Responsável --|> Atleta
 
-rectangle "PKZ LAB - Plataforma de Performance Integrada" {
+usecase "Autenticação e Cadastro\n(UC01 a UC04)" as P1
+usecase "Agendamento\n(UC05 a UC10)" as P2
+usecase "Acompanhamento Técnico\n(UC11 a UC15)" as P3
+usecase "Administração\n(UC16 e UC17)" as P4
+
+Atleta -- P1
+Atleta -- P2
+Atleta -- P3
+
+Profissional -- P1
+Profissional -- P2
+Profissional -- P3
+
+Recepção -- P1
+Recepção -- P2
+
+Administrador -- P1
+Administrador -- P2
+Administrador -- P3
+Administrador -- P4
+
+@enduml
+```
+
+#### Diagrama detalhado — Autenticação e Cadastro
+
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Roboto
+skinparam nodesep 40
+skinparam ranksep 60
+
+actor Atleta
+actor Responsável
+actor Profissional
+actor Recepção
+actor Administrador
+
+Responsável --|> Atleta
+
+rectangle "Autenticação e Cadastro" {
   usecase "UC01 - Autenticar-se no sistema" as UC01
   usecase "UC02 - Cadastrar-se na plataforma" as UC02
   usecase "UC03 - Recuperar senha" as UC03
   usecase "UC04 - Cadastrar/aprovar profissional ou recepção" as UC04
+}
+
+Atleta -- UC01
+Atleta -- UC02
+Atleta -- UC03
+
+Profissional -- UC01
+Profissional -- UC03
+
+Recepção -- UC01
+Recepção -- UC03
+
+Administrador -- UC01
+Administrador -- UC03
+Administrador -- UC04
+
+@enduml
+```
+
+#### Diagrama detalhado — Agendamento
+
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Roboto
+skinparam nodesep 40
+skinparam ranksep 60
+
+actor Atleta
+actor Responsável
+actor Profissional
+actor Recepção
+actor Administrador
+
+Responsável --|> Atleta
+
+rectangle "Agendamento" {
   usecase "UC05 - Gerenciar disponibilidade" as UC05
   usecase "UC06 - Criar agendamento" as UC06
   usecase "UC07 - Verificar disponibilidade de recursos" as UC07
   usecase "UC08 - Reagendar agendamento" as UC08
   usecase "UC09 - Cancelar agendamento" as UC09
   usecase "UC10 - Consultar agenda" as UC10
+}
+
+Profissional -- UC05
+
+Atleta -- UC06
+Profissional -- UC06
+Recepção -- UC06
+Administrador -- UC06
+
+Atleta -- UC08
+Profissional -- UC08
+Recepção -- UC08
+Administrador -- UC08
+
+Atleta -- UC09
+Profissional -- UC09
+Recepção -- UC09
+Administrador -- UC09
+
+Atleta -- UC10
+Profissional -- UC10
+Recepção -- UC10
+Administrador -- UC10
+
+UC06 .> UC07 : <<include>>
+UC08 .> UC07 : <<include>>
+UC08 ..> UC09 : <<extend>>
+
+@enduml
+```
+
+#### Diagrama detalhado — Acompanhamento Técnico
+
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Roboto
+skinparam nodesep 40
+skinparam ranksep 60
+
+actor Atleta
+actor Responsável
+actor Profissional
+actor Administrador
+
+Responsável --|> Atleta
+
+rectangle "Acompanhamento Técnico" {
   usecase "UC11 - Registrar status do atendimento" as UC11
   usecase "UC12 - Registrar avaliação física" as UC12
   usecase "UC13 - Prescrever plano de treino" as UC13
   usecase "UC14 - Acompanhar evolução do atleta" as UC14
   usecase "UC15 - Gerar relatórios de desempenho" as UC15
+}
+
+Profissional -- UC11
+Administrador -- UC11
+
+Profissional -- UC12
+Profissional -- UC13
+
+Atleta -- UC14
+Profissional -- UC14
+
+Profissional -- UC15
+Administrador -- UC15
+
+@enduml
+```
+
+#### Diagrama detalhado — Administração
+
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Roboto
+
+actor Administrador
+
+rectangle "Administração" {
   usecase "UC16 - Gerenciar usuários e permissões" as UC16
   usecase "UC17 - Gerenciar espaços e equipamentos" as UC17
 }
 
-Atleta -- UC01
-Atleta -- UC02
-Atleta -- UC03
-Atleta -- UC06
-Atleta -- UC08
-Atleta -- UC09
-Atleta -- UC10
-Atleta -- UC14
-
-Profissional -- UC01
-Profissional -- UC03
-Profissional -- UC05
-Profissional -- UC06
-Profissional -- UC08
-Profissional -- UC09
-Profissional -- UC10
-Profissional -- UC11
-Profissional -- UC12
-Profissional -- UC13
-Profissional -- UC14
-Profissional -- UC15
-
-Recepção -- UC01
-Recepção -- UC03
-Recepção -- UC06
-Recepção -- UC08
-Recepção -- UC09
-Recepção -- UC10
-
-Administrador -- UC01
-Administrador -- UC03
-Administrador -- UC04
-Administrador -- UC06
-Administrador -- UC08
-Administrador -- UC09
-Administrador -- UC10
-Administrador -- UC11
-Administrador -- UC15
 Administrador -- UC16
 Administrador -- UC17
-
-UC06 .> UC07 : <<include>>
-UC08 .> UC07 : <<include>>
-UC08 ..> UC09 : <<extend>>
 
 @enduml
 ```
@@ -459,3 +590,4 @@ A definição dos casos de uso permitiu transformar os requisitos elicitados no 
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 23/09/2026 | 1.0 | Criação do documento de casos de uso, a partir do Brainstorm, 5W2H, Pesquisa, Mapa Mental e Protótipo de Baixa Fidelidade | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 23/09/2026 | 1.1 | Diagrama de casos de uso dividido em visão geral por área funcional e quatro diagramas detalhados, para reduzir o cruzamento de linhas | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
