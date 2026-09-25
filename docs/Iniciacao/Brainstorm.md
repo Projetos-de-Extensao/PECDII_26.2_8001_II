@@ -6,135 +6,123 @@ title: Brainstorm
 ## Introdução
 
 <p align="justify">
-O brainstorm é uma técnica de elicitação de requisitos que estimula a geração livre de ideias em grupo, sem críticas imediatas, com o objetivo de ampliar a visão sobre o problema e identificar oportunidades de solução. No contexto do projeto, a técnica foi aplicada para discutir os principais objetivos, usuários, funcionalidades e processos que a plataforma deve apoiar, contribuindo para a definição inicial dos requisitos do sistema.
+O brainstorm é uma técnica de elicitação de requisitos que estimula a geração de ideias em grupo para compreender o problema e identificar necessidades da solução. Neste projeto, foi utilizado para levantar necessidades do PKZ LAB — CT de Performance Integrado e orientar a definição dos requisitos da plataforma back-end (API REST) de gestão esportiva.
 </p>
 
 ## Metodologia
 
 <p align="justify">
-A equipe realizou uma sessão colaborativa de discussão, com foco na identificação das necessidades do sistema e na exploração de ideias relacionadas ao domínio do projeto. A dinâmica foi orientada por perguntas-chave sobre o propósito da aplicação, os usuários envolvidos, as principais funcionalidades e os fluxos críticos de uso. As ideias geradas foram registradas, agrupadas e transformadas em requisitos preliminares.
+A equipe organizou as ideias por temas: objetivo e escopo do produto, perfis de usuário, cadastro e acesso, agendamentos e disponibilidade, acompanhamento técnico e proteção de dados. As contribuições foram consolidadas em requisitos preliminares e posteriormente detalhadas nos casos de uso, no protótipo de baixa fidelidade e nos demais documentos de elaboração.
 </p>
 
 ## Brainstorm
 
 ### Versão 1.0
 
-### 1. Qual o objetivo principal da aplicação?
+### 1. Qual é o objetivo e o escopo da plataforma?
 
 <p align="justify">
-<strong>Gabriel</strong> - A plataforma deve centralizar o acompanhamento de atletas, treinos e avaliações em um único ambiente para facilitar a gestão da performance esportiva.
+<strong>Gabriel</strong> - A plataforma deve centralizar os dados de atletas, avaliações físicas e planos de treino para apoiar o acompanhamento da performance esportiva.
 </p>
 
 <p align="justify">
-<strong>Vitor Luiz</strong> - O objetivo principal é permitir que a equipe técnica tenha uma visão clara do histórico de evolução dos atletas e dos planejamentos de treinamento.
+<strong>Vitor Luiz</strong> - A equipe técnica precisa consultar o histórico de evolução dos atletas e os planejamentos de treinamento em um só lugar.
 </p>
 
 <p align="justify">
-<strong>Vitor Magalhães</strong> - A aplicação deve apoiar a organização das atividades do centro de treinamento, reduzindo a dispersão de informações em planilhas e mensagens.
+<strong>Vitor Magalhães</strong> - O sistema deve reduzir a dispersão de informações hoje mantidas em planilhas, anotações e mensagens, além de apoiar a organização da rotina do CT.
 </p>
 
 <p align="justify">
-<strong>Filipe</strong> - A solução deve facilitar o controle de agenda, avaliações, metas e acompanhamento de desempenho, proporcionando uma base mais objetiva para tomadas de decisão.
-</p>
-
----
-
-### 2. Como será o processo para cadastrar um novo cliente?
-
-<p align="justify">
-<strong>Gabriel</strong> - O sistema deve permitir o cadastro de atletas e profissionais com dados básicos, além de informações relevantes para acompanhamento da evolução e das atividades.
-</p>
-
-<p align="justify">
-<strong>Vitor Luiz</strong> - Cada perfil deve ter acesso de acordo com sua função, como atletas, treinadores, fisioterapeutas e administradores.
-</p>
-
-<p align="justify">
-<strong>Vitor Magalhães</strong> - O cadastro de treinos deve permitir a definição de exercícios, objetivos, frequência, carga e observações, além de registrar evolução ao longo do tempo.
-</p>
-
-<p align="justify">
-<strong>Filipe</strong> - A plataforma deve manter um histórico do processo de treinamento para permitir análise de desempenho e retorno sobre as intervenções realizadas.
+<strong>Filipe</strong> - O back-end deve fornecer dados consistentes sobre agenda, avaliações e desempenho para apoiar as decisões da equipe técnica.
 </p>
 
 ---
 
-### 3. Como será a forma de adicionar produtos?
+### 2. Quais perfis utilizarão o sistema e como será controlado o acesso?
 
 <p align="justify">
-<strong>Gabriel</strong> - O sistema deve permitir agendar atendimentos, treinos e avaliações, considerando a disponibilidade de atletas, profissionais e espaços físicos.
+<strong>Gabriel</strong> - Os principais perfis são atletas, responsáveis por atletas menores, profissionais, recepção e administradores.
 </p>
 
 <p align="justify">
-<strong>Vitor Luiz</strong> - O agendamento deve evitar conflitos de horários e apoiar a organização da rotina do centro de treinamento.
+<strong>Vitor Luiz</strong> - Cada perfil deve acessar somente as informações e funcionalidades necessárias à sua atuação no CT.
 </p>
 
 <p align="justify">
-<strong>Vitor Magalhães</strong> - A agenda deve mostrar disponibilidade, compromissos e pendências para facilitar o controle diário da operação.
+<strong>Vitor Magalhães</strong> - O cadastro de atletas deve permitir o vínculo com um responsável quando necessário, e os cadastros de profissionais e recepção devem seguir o processo de aprovação administrativa previsto.
 </p>
 
 <p align="justify">
-<strong>Filipe</strong> - O sistema deve manter registro de presença, observações e ajuste de agenda quando houver alterações no planejamento.
-</p>
-
----
-
-### 4. Outras perguntas pertinentes ao contexto
-
-<p align="justify">
-<strong>Gabriel</strong> - Informações como histórico de treinamento, avaliações físicas, metas, cronograma de treinos e disponibilidade devem estar acessíveis com clareza.
-</p>
-
-<p align="justify">
-<strong>Vitor Luiz</strong> - O usuário precisa visualizar indicadores de evolução, dados dos atendimentos e informações sobre eventos e programas esportivos.
-</p>
-
-<p align="justify">
-<strong>Vitor Magalhães</strong> - O sistema deve apresentar relatórios simples e úteis para acompanhamento do desempenho, como progresso, frequência e evolução de indicadores.
-</p>
-
-<p align="justify">
-<strong>Filipe</strong> - Também deve haver espaço para observações técnicas, informações de contexto e comunicação entre atletas e profissionais.
+<strong>Filipe</strong> - O histórico do atleta deve estar disponível aos perfis autorizados, respeitando os vínculos e as permissões definidos pelo sistema.
 </p>
 
 ---
 
-### 5. "Outras perguntas pertinentes ao contexto", Como seria a forma de adicionar do cliente adicionar os produtos ?
+### 3. Como devem funcionar os agendamentos e a disponibilidade?
 
 <p align="justify">
-<strong>Gabriel</strong> - A funcionalidade central deve ser o gerenciamento de agendamentos, seguida pelo cadastro de atletas, avaliações e planos de treinamento.
+<strong>Gabriel</strong> - A criação de um agendamento deve considerar a disponibilidade dos atletas, do profissional, do espaço e dos equipamentos selecionados.
 </p>
 
 <p align="justify">
-<strong>Vitor Luiz</strong> - O sistema deve permitir a manutenção de históricos e relatórios para subsidiar decisões técnicas e de acompanhamento.
+<strong>Vitor Luiz</strong> - O sistema deve verificar conflitos antes da confirmação e preservar as informações preenchidas quando for necessário ajustar o horário ou os recursos.
 </p>
 
 <p align="justify">
-<strong>Vitor Magalhães</strong> - A segurança das informações sensíveis, especialmente dados de saúde e avaliação física, deve ser tratada como prioridade.
+<strong>Vitor Magalhães</strong> - A agenda deve permitir consulta por perfil e apoiar a criação, o reagendamento e o cancelamento de compromissos.
 </p>
 
 <p align="justify">
-<strong>Filipe</strong> - O produto deve ser pensado para uso prático no ambiente do centro de treinamento, com foco em organização, visibilidade e acesso rápido à informação.
+<strong>Filipe</strong> - Alterações e cancelamentos devem manter o histórico do agendamento, e os atendimentos devem permitir registrar presença, falta ou cancelamento.
 </p>
 
 ---
 
-### 6. Quais informações seriam interessante para o cliente?
+### 4. Como será feito o acompanhamento técnico dos atletas?
 
 <p align="justify">
-<strong>Gabriel</strong> - Informações como histórico de treinamento, avaliações físicas, metas, cronograma de treinos e disponibilidade devem estar acessíveis com clareza.
+<strong>Gabriel</strong> - O profissional deve registrar avaliações físicas com data e resultados para compor o histórico do atleta.
 </p>
 
 <p align="justify">
-<strong>Vitor Luiz</strong> - O usuário precisa visualizar indicadores de evolução, dados dos atendimentos e informações sobre eventos e programas esportivos.
+<strong>Vitor Luiz</strong> - O profissional deve prescrever planos de treino e acompanhar sua evolução ao longo do tempo.
 </p>
 
 <p align="justify">
-<strong>Vitor Magalhães</strong> - O sistema deve apresentar relatórios simples e úteis para acompanhamento do desempenho, como progresso, frequência e evolução de indicadores.
+<strong>Vitor Magalhães</strong> - Atletas e equipe técnica devem consultar indicadores de evolução e comparar resultados quando houver histórico suficiente.
 </p>
 
 <p align="justify">
-<strong>Filipe</strong> - Também deve haver espaço para observações técnicas, informações de contexto e comunicação entre atletas e profissionais.
+<strong>Filipe</strong> - Relatórios de desempenho devem consolidar dados de avaliações, planos e atendimentos para apoiar decisões técnicas e administrativas.
+</p>
+
+---
+
+### 5. Quais cuidados de segurança e limites de escopo devem ser considerados?
+
+<p align="justify">
+<strong>Gabriel</strong> - O sistema deve controlar o acesso por perfil e proteger os dados pessoais e sensíveis dos atletas.
+</p>
+
+<p align="justify">
+<strong>Vitor Luiz</strong> - O cadastro deve registrar o consentimento aplicável e, para menores de idade, considerar o vínculo e a autorização do responsável.
+</p>
+
+<p align="justify">
+<strong>Vitor Magalhães</strong> - O tratamento das informações deve observar a LGPD; os dados de saúde e desempenho exigem controle de acesso adequado.
+</p>
+
+<p align="justify">
+<strong>Filipe</strong> - O escopo desta versão é o back-end da plataforma. Um módulo financeiro próprio, a integração direta com sensores e funcionalidades avançadas de comunicação não fazem parte do MVP; a integração com um sistema financeiro externo deve ser considerada sem transferir para o PKZ LAB a responsabilidade por cobranças e pagamentos.
+</p>
+
+---
+
+### 6. Síntese do brainstorm
+
+<p align="justify">
+As ideias convergem para uma API REST que centraliza cadastros e dados de acompanhamento, com gerenciamento de agendamentos e verificação de disponibilidade como fluxo operacional prioritário. O escopo também contempla avaliações físicas, planos de treino, histórico e relatórios, com acesso condicionado ao perfil e atenção especial à proteção de dados. A plataforma não terá módulo financeiro próprio, mas deverá prever integração com um sistema financeiro externo. Mensagens automatizadas e integração com sensores não integram o escopo desta versão.
 </p>
 
 ### Requisitos elicitados
@@ -156,11 +144,20 @@ A equipe realizou uma sessão colaborativa de discussão, com foco na identifica
 | BS13 | O sistema deve garantir a confidencialidade e segurança dos dados sensíveis. |
 | BS14 | O sistema deve suportar a organização das rotinas e operações do centro de treinamento. |
 | BS15 | O sistema deve facilitar a comunicação e o compartilhamento de informações entre equipe e atletas. |
+| BS16 | O sistema deve permitir integração com um sistema financeiro externo do centro de treinamento, sem implementar operações financeiras próprias. |
+
+<p align="justify">
+O requisito BS15 é atendido parcialmente nesta versão por meio de observações associadas a agendamentos, atendimentos e avaliações. Mensagens e notificações automatizadas não fazem parte do MVP e ficam previstas para evolução futura.
+</p>
+
+<p align="justify">
+O requisito BS16 estabelece a necessidade de integração externa, mas o sistema financeiro de destino, os dados a compartilhar e as operações disponíveis ainda precisam ser definidos. A integração não inclui processamento de pagamentos nem gestão financeira dentro do PKZ LAB.
+</p>
 
 ## Conclusão
 
 <p align="justify">
-A aplicação da técnica de brainstorm permitiu identificar ideias, necessidades e requisitos iniciais relevantes para a solução proposta. A sessão evidenciou a importância de centralizar dados, organizar agendas, acompanhar evolução esportiva e garantir segurança da informação, elementos fundamentais para o sucesso do sistema.
+A aplicação do brainstorm permitiu consolidar as necessidades iniciais do PKZ LAB: centralizar informações de atletas, apoiar a rotina de agendamentos e disponibilidade, registrar o acompanhamento técnico, proteger dados pessoais e sensíveis e prever integração com o sistema financeiro externo do CT. Os requisitos BS01 a BS16 orientam o detalhamento dos casos de uso; a integração financeira ainda depende da definição do sistema de destino e dos dados e operações envolvidos.
 </p>
 
 ## Referências Bibliográficas

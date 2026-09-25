@@ -24,7 +24,7 @@ title: Pesquisa
     - **Equipe técnica** (treinadores, preparadores físicos, fisioterapeutas) que planeja e registra treinos e avaliações.
     - **Gestão do CT**, que precisa de visão geral de agenda, ocupação e resultados.
 
-- **Escopo**: O projeto abrange o back-end da plataforma — modelagem de dados, regras de negócio e API para atletas, avaliações, planos de treino, sessões e indicadores de evolução. Não abrange a construção de aparelhos/sensores físicos nem a operação comercial (cobrança/financeiro) do CT nesta versão.
+- **Escopo**: O projeto abrange o back-end da plataforma — modelagem de dados, regras de negócio e API para atletas, avaliações, planos de treino, sessões e indicadores de evolução. Prevê também integração com um sistema financeiro externo do CT, a ser detalhada após a definição do sistema, dos dados e das operações necessários. Não abrange a construção de aparelhos/sensores físicos nem a implementação da operação comercial (cobrança/financeiro) dentro da plataforma.
 
 - **Análise de aplicações e mercado**: Soluções de referência no acompanhamento esportivo e de treino — como *TrainingPeaks*, *Playmaker AI*, *Wyscout* e apps de gestão de academia/CT — mostram a demanda por centralizar dados de performance. A oportunidade do PKZ LAB é ter uma plataforma própria, adaptada à sua metodologia de treino integrado.
 
