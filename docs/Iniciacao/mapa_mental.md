@@ -27,7 +27,7 @@ title Mapa Mental - PKZ LAB (Plataforma de Performance Integrada)
 
 * PKZ LAB
 ** Usuários
-*** Atleta / Cliente
+*** Atleta / Responsável
 **** Criar conta
 **** Buscar profissionais
 **** Agendar sessão
