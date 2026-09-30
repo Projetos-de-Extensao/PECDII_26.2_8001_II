@@ -6,7 +6,7 @@ title: Casos de Uso
 ## Introdução
 
 <p align="justify">
-O caso de uso é uma técnica de especificação de requisitos que descreve a interação entre os atores (usuários ou sistemas externos) e o sistema, detalhando o objetivo dessa interação, as condições necessárias para que ela ocorra e os fluxos de eventos até seu resultado. No contexto do projeto, os casos de uso consolidam, em um formato estruturado, os requisitos já levantados no Brainstorm, no 5W2H, na Pesquisa e nas telas do Protótipo de Baixa Fidelidade, servindo de base para a modelagem de dados e para a definição dos endpoints da API REST do PKZ LAB.
+O caso de uso é uma técnica de especificação de requisitos que descreve a interação entre os atores (usuários ou sistemas externos) e o sistema, detalhando o objetivo dessa interação, as condições necessárias para que ela ocorra e os fluxos de eventos até seu resultado. No contexto do projeto, os casos de uso consolidam, em um formato estruturado, os requisitos já levantados no Brainstorm, no 5W2H, na Pesquisa e nas telas do Protótipo de Baixa Fidelidade, servindo de base para a modelagem de dados e para a definição dos endpoints da API do PKZ LAB.
 </p>
 
 ## Metodologia
@@ -43,47 +43,41 @@ Com 17 casos de uso e 5 atores, um único diagrama concentrando todas as associa
 
 #### Visão geral 
 
-```plantuml
 @startuml
 left to right direction
 skinparam packageStyle rectangle
 skinparam monochrome true
 skinparam shadowing false
 skinparam defaultFontName Roboto
-skinparam nodesep 50
-skinparam ranksep 70
+skinparam nodesep 35
+skinparam ranksep 90
 
+actor "Usuário" as Usuario <<abstrato>>
 actor Atleta
 actor Responsável
 actor Profissional
 actor Recepção
 actor Administrador
 
-Responsável --|> Atleta
+Usuario <|-- Atleta
+Usuario <|-- Profissional
+Usuario <|-- Recepção
+Usuario <|-- Administrador
+Atleta <|-- Responsável
 
 usecase "Autenticação e Cadastro\n(UC01 a UC04)" as P1
 usecase "Agendamento\n(UC05 a UC10)" as P2
 usecase "Acompanhamento Técnico\n(UC11 a UC15)" as P3
 usecase "Administração\n(UC16 e UC17)" as P4
 
-Atleta -- P1
-Atleta -- P2
+Usuario -- P1
+Usuario -- P2
+
 Atleta -- P3
-
-Profissional -- P1
-Profissional -- P2
 Profissional -- P3
-
-Recepção -- P1
-Recepção -- P2
-
-Administrador -- P1
-Administrador -- P2
 Administrador -- P3
 Administrador -- P4
-
 @enduml
-```
 
 #### Diagrama detalhado — Autenticação e Cadastro
 
@@ -131,61 +125,47 @@ Administrador -- UC04
 
 #### Diagrama detalhado — Agendamento
 
-```plantuml
 @startuml
 left to right direction
 skinparam packageStyle rectangle
 skinparam monochrome true
 skinparam shadowing false
 skinparam defaultFontName Roboto
-skinparam nodesep 40
-skinparam ranksep 60
+skinparam nodesep 35
+skinparam ranksep 80
 
+actor "Usuário" as Usuario <<abstrato>>
 actor Atleta
 actor Responsável
 actor Profissional
 actor Recepção
 actor Administrador
 
-Responsável --|> Atleta
+Usuario <|-- Atleta
+Usuario <|-- Profissional
+Usuario <|-- Recepção
+Usuario <|-- Administrador
+Atleta <|-- Responsável
 
 rectangle "Agendamento" {
-  usecase "UC05 - Gerenciar disponibilidade" as UC05
   usecase "UC06 - Criar agendamento" as UC06
-  usecase "UC07 - Verificar disponibilidade de recursos" as UC07
+  usecase "UC07 - Verificar disponibilidade\nde recursos" as UC07
   usecase "UC08 - Reagendar agendamento" as UC08
   usecase "UC09 - Cancelar agendamento" as UC09
   usecase "UC10 - Consultar agenda" as UC10
+  usecase "UC05 - Gerenciar disponibilidade" as UC05
 }
 
+Usuario -- UC06
+Usuario -- UC08
+Usuario -- UC09
+Usuario -- UC10
 Profissional -- UC05
 
-Atleta -- UC06
-Profissional -- UC06
-Recepção -- UC06
-Administrador -- UC06
-
-Atleta -- UC08
-Profissional -- UC08
-Recepção -- UC08
-Administrador -- UC08
-
-Atleta -- UC09
-Profissional -- UC09
-Recepção -- UC09
-Administrador -- UC09
-
-Atleta -- UC10
-Profissional -- UC10
-Recepção -- UC10
-Administrador -- UC10
-
-UC06 .> UC07 : <<include>>
-UC08 .> UC07 : <<include>>
+UC06 ..> UC07 : <<include>>
+UC08 ..> UC07 : <<include>>
 UC08 ..> UC09 : <<extend>>
-
 @enduml
-```
 
 #### Diagrama detalhado — Acompanhamento Técnico
 
