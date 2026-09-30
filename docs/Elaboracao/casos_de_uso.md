@@ -43,6 +43,7 @@ Com 17 casos de uso e 5 atores, um único diagrama concentrando todas as associa
 
 #### Visão geral 
 
+```plantuml
 @startuml
 left to right direction
 skinparam packageStyle rectangle
@@ -78,7 +79,7 @@ Profissional -- P3
 Administrador -- P3
 Administrador -- P4
 @enduml
-
+```
 #### Diagrama detalhado — Autenticação e Cadastro
 
 ```plantuml
@@ -124,7 +125,7 @@ Administrador -- UC04
 ```
 
 #### Diagrama detalhado — Agendamento
-
+```plantuml
 @startuml
 left to right direction
 skinparam packageStyle rectangle
@@ -166,7 +167,7 @@ UC06 ..> UC07 : <<include>>
 UC08 ..> UC07 : <<include>>
 UC08 ..> UC09 : <<extend>>
 @enduml
-
+```
 #### Diagrama detalhado — Acompanhamento Técnico
 
 ```plantuml
