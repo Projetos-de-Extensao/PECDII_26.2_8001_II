@@ -10,7 +10,7 @@ hide:
 
   <div class="card module-card" data-module-id="PECDII_26.2_8001_IV">
     <div class="card-header">
-      Grupo IV
+      Grupo II
     </div>
     <div class="card-content">
       <p class="contributors">Vitor MF, Vitor Zanconato, Filipe Andrade, Gabriel de Souza </p>
