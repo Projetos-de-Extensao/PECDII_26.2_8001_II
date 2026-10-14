@@ -67,11 +67,11 @@ hide:
         </a>
 
         <a
-          href="https://github.com/VitoorMF/Grupo-14---SQL/invitations"
+          href="http://3.148.241.152:8000/admin/login/?next=/admin/"
           class="grupo-link"
           target="_blank"
           rel="noopener noreferrer">
-          Gerenciar Convites
+          Django Classes
         </a>
 
       </div>
