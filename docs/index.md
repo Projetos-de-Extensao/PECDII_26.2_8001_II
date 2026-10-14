@@ -14,7 +14,7 @@ hide:
     </div>
     <div class="card-content">
       <p class="contributors">Vitor MF, Vitor Zanconato, Filipe Andrade, Gabriel de Souza </p>
-      <a href="https://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitations" class="buttin primary-btn">
+      <a href="https://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitationshttps://github.com/VitoorMF/Grupo-14---SQL/invitations" class="buttin primary-btn">Ver Painel admin</a>
       <a href="https://github.com/Projetos-de-Extensao/PECDII_26.2_8001_II" class="button primary-btn">
         Ver Repositório
       </a>
