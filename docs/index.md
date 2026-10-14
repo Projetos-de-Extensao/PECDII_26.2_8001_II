@@ -1,4 +1,3 @@
-
 ---
 hide:
   - navigation
@@ -7,7 +6,36 @@ hide:
 
 # PECDII_26.2_8001 { style="display:none" }
 
-<div class="module-cards grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); max-width: 500px;">
+<style>
+.grupo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.grupo-link,
+.grupo-link:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  background-color: #1c365a !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 600;
+  text-decoration: none !important;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.grupo-link:hover {
+  background-color: #305786 !important;
+  color: #ffffff !important;
+}
+</style>
+
+<div class="module-cards grid" style="max-width: 520px;">
 
   <div class="card module-card" data-module-id="PECDII_26.2_8001_II">
 
@@ -28,21 +56,25 @@ hide:
         desenvolvido pelo Grupo II.
       </p>
 
-      <a
-        href="https://github.com/Projetos-de-Extensao/PECDII_26.2_8001_II"
-        class="button primary-btn"
-        target="_blank"
-        rel="noopener noreferrer">
-        Ver Repositório
-      </a>
+      <div class="grupo-actions">
 
-      <a
-        href="https://github.com/VitoorMF/Grupo-14---SQL/invitations"
-        class="button primary-btn"
-        target="_blank"
-        rel="noopener noreferrer">
-        Gerenciar Convites
-      </a>
+        <a
+          href="https://github.com/Projetos-de-Extensao/PECDII_26.2_8001_II"
+          class="grupo-link"
+          target="_blank"
+          rel="noopener noreferrer">
+          Ver Repositório
+        </a>
+
+        <a
+          href="https://github.com/VitoorMF/Grupo-14---SQL/invitations"
+          class="grupo-link"
+          target="_blank"
+          rel="noopener noreferrer">
+          Gerenciar Convites
+        </a>
+
+      </div>
 
     </div>
   </div>
