@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-n@6#l%0s7m1ckt6yxo$u*)-bv=v(hpuf!g!giqa54$7io6gbpo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["3.148.241.152", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -69,6 +69,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'pkzlab.wsgi.application'
+
 
 
 # Database
