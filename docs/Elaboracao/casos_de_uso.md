@@ -25,7 +25,7 @@ Os atores foram definidos a partir dos perfis já descritos no Mapa Mental e na 
 | -- | -- |
 | **Atleta** | Usuário do centro de treinamento que acompanha sua própria evolução, agenda e avaliações. |
 | **Responsável** | Representa legalmente um atleta menor de idade (ECA); herda as ações do ator Atleta em relação ao(s) dependente(s) vinculado(s). |
-| **Profissional** | Equipe técnica do CT (Personal Trainer, Preparador Físico, Fisioterapeuta, Nutricionista), responsável por avaliações, planos de treino e atendimentos. |
+| **Profissional** | Equipe técnica do CT (Personal Trainer, Preparador Físico, Fisioterapeuta, Nutricionista), formada por funcionários cadastrados pelo administrador; responsável por avaliações, planos de treino e atendimentos. |
 | **Recepção** | Realiza agendamentos e consultas em nome de atletas e profissionais, com visão da agenda geral do CT. |
 | **Administrador** | Coordenação do CT; gerencia usuários, permissões, espaços, equipamentos e possui visão irrestrita da agenda. |
 
@@ -38,7 +38,7 @@ O ator <strong>Responsável</strong> é uma especialização de <strong>Atleta</
 ### Versão 1.1
 
 <p align="justify">
-Com 17 casos de uso e 5 atores, um único diagrama concentrando todas as associações resulta em muitas linhas cruzadas, prejudicando a leitura. Por isso, o diagrama foi dividido em uma <strong>visão geral</strong>, agrupando os casos de uso por área funcional, e em <strong>quatro diagramas detalhados</strong>, um por área, mantendo apenas os atores e relacionamentos relevantes a cada um.
+Com 21 casos de uso e 5 atores, um único diagrama concentrando todas as associações resulta em muitas linhas cruzadas, prejudicando a leitura. Por isso, o diagrama foi dividido em uma <strong>visão geral</strong>, agrupando os casos de uso por área funcional, e em <strong>quatro diagramas detalhados</strong>, um por área, mantendo apenas os atores e relacionamentos relevantes a cada um.
 </p>
 
 #### Visão geral 
@@ -67,9 +67,9 @@ Usuario <|-- Administrador
 Atleta <|-- Responsável
 
 usecase "Autenticação e Cadastro\n(UC01 a UC04)" as P1
-usecase "Agendamento\n(UC05 a UC10)" as P2
+usecase "Agendamento\n(UC05 a UC10, UC19 e UC20)" as P2
 usecase "Acompanhamento Técnico\n(UC11 a UC15)" as P3
-usecase "Administração\n(UC16 e UC17)" as P4
+usecase "Administração\n(UC16 a UC18 e UC21)" as P4
 
 Usuario -- P1
 Usuario -- P2
@@ -104,7 +104,7 @@ rectangle "Autenticação e Cadastro" {
   usecase "UC01 - Autenticar-se no sistema" as UC01
   usecase "UC02 - Cadastrar-se na plataforma" as UC02
   usecase "UC03 - Recuperar senha" as UC03
-  usecase "UC04 - Cadastrar/aprovar profissional ou recepção" as UC04
+  usecase "UC04 - Cadastrar profissional ou recepção" as UC04
 }
 
 Atleta -- UC01
@@ -155,6 +155,8 @@ rectangle "Agendamento" {
   usecase "UC09 - Cancelar agendamento" as UC09
   usecase "UC10 - Consultar agenda" as UC10
   usecase "UC05 - Gerenciar disponibilidade" as UC05
+  usecase "UC19 - Entrar na lista de espera" as UC19
+  usecase "UC20 - Receber lembretes e avisos" as UC20
 }
 
 Usuario -- UC06
@@ -162,6 +164,9 @@ Usuario -- UC08
 Usuario -- UC09
 Usuario -- UC10
 Profissional -- UC05
+Atleta -- UC19
+Recepção -- UC19
+Atleta -- UC20
 
 UC06 ..> UC07 : <<include>>
 UC08 ..> UC07 : <<include>>
@@ -225,10 +230,14 @@ actor Administrador
 rectangle "Administração" {
   usecase "UC16 - Gerenciar usuários e permissões" as UC16
   usecase "UC17 - Gerenciar espaços e equipamentos" as UC17
+  usecase "UC18 - Gerenciar serviços" as UC18
+  usecase "UC21 - Montar a grade de aulas" as UC21
 }
 
 Administrador -- UC16
 Administrador -- UC17
+Administrador -- UC18
+Administrador -- UC21
 
 @enduml
 ```
@@ -240,7 +249,7 @@ Administrador -- UC17
 | UC01 | Autenticar-se no sistema | Todos os perfis | — | BS12, BS13 |
 | UC02 | Cadastrar-se na plataforma | Atleta, Responsável | — | BS01, BS13 |
 | UC03 | Recuperar senha | Todos os perfis | — | BS13 |
-| UC04 | Cadastrar/aprovar profissional ou recepção | Administrador | — | BS02, BS12, BS13 |
+| UC04 | Cadastrar profissional ou recepção | Administrador | — | BS02, BS12, BS13 |
 | UC05 | Gerenciar disponibilidade | Profissional | — | BS06 |
 | UC06 | Criar agendamento | Atleta, Responsável, Profissional, Recepção, Administrador | inclui UC07 | BS05, BS06, BS11 |
 | UC07 | Verificar disponibilidade de recursos | (interno, acionado por UC06/UC08) | incluído por UC06 e UC08 | BS06 |
@@ -254,13 +263,17 @@ Administrador -- UC17
 | UC15 | Gerar relatórios de desempenho | Profissional, Administrador | — | BS09 |
 | UC16 | Gerenciar usuários e permissões | Administrador | — | BS12, BS13, BS14 |
 | UC17 | Gerenciar espaços e equipamentos | Administrador | — | BS06, BS14 |
+| UC18 | Gerenciar serviços | Administrador | — | BS05, BS14 |
+| UC19 | Entrar na lista de espera | Atleta, Responsável, Recepção | estende UC06 | BS05, BS06, BS14 |
+| UC20 | Receber lembretes e avisos | Sistema (Atleta e Responsável recebem) | — | BS11, BS15 |
+| UC21 | Montar a grade de aulas em grupo | Administrador | — | BS05, BS06, BS14 |
 
 ## Detalhamento dos Casos de Uso
 
 ### UC01 — Autenticar-se no sistema
 
 - **Atores:** Atleta, Responsável, Profissional, Recepção, Administrador.
-- **Pré-condições:** Usuário possui cadastro ativo (aprovado) na plataforma.
+- **Pré-condições:** Usuário possui conta ativa na plataforma (atleta e responsável por autocadastro; profissionais e recepção cadastrados pelo administrador).
 - **Fluxo principal:**
   1. Usuário acessa a tela de login.
   2. Usuário informa e-mail e senha.
@@ -268,7 +281,7 @@ Administrador -- UC17
   4. Sistema identifica o perfil do usuário e carrega o painel correspondente, aplicando o controle de acesso por perfil.
 - **Fluxos alternativos:**
   - **A1 — Credenciais inválidas:** sistema exibe mensagem genérica ("E-mail ou senha incorretos"), sem indicar qual campo falhou, e retorna ao passo 2.
-  - **A2 — Cadastro pendente de aprovação:** sistema exibe "Cadastro em análise pela administração" e impede o acesso.
+  - **A2 — Conta inativa:** sistema exibe "Conta inativa. Procure a administração do CT" e impede o acesso.
   - **A3 — "Manter-me conectado" marcado:** sistema prolonga a validade da sessão no dispositivo.
 - **Pós-condições:** Sessão autenticada criada; usuário passa a acessar apenas os dados e funcionalidades permitidos ao seu perfil.
 
@@ -309,26 +322,30 @@ Administrador -- UC17
 
 ---
 
-### UC04 — Cadastrar/aprovar profissional ou recepção
+### UC04 — Cadastrar profissional ou recepção
 
-- **Atores:** Administrador (primário); Profissional/Recepção (secundário, solicitante do cadastro).
+- **Atores:** Administrador.
 - **Pré-condições:** Administrador autenticado (UC01).
+- **Regra:** profissionais e recepção não fazem autocadastro. Eles fazem parte da equipe do CT, e só o administrador cria essas contas.
 - **Fluxo principal:**
-  1. Profissional ou funcionário de recepção realiza o autocadastro na plataforma.
-  2. Sistema registra a conta com status "pendente" e sem permissões operacionais.
-  3. Administrador acessa a lista de cadastros pendentes.
-  4. Administrador analisa os dados e aprova o cadastro.
-  5. Sistema ativa a conta e libera as permissões correspondentes ao perfil.
+  1. Administrador acessa "Equipe do CT" e seleciona "Novo cadastro".
+  2. Administrador informa nome, e-mail, matrícula e data de admissão.
+  3. Administrador marca o(s) papel(is) que a pessoa exerce (Profissional, Recepção ou Administrador) e, para profissionais, as especialidades atendidas (ex.: Personal Trainer, Fisioterapeuta).
+  4. Sistema valida os dados e cria a conta já vinculada ao CT, com as permissões de cada papel.
+  5. Sistema envia ao e-mail cadastrado um link de primeiro acesso para o funcionário definir a própria senha.
 - **Fluxos alternativos:**
-  - **A1 — Rejeição do cadastro:** sistema mantém a conta inativa e registra o motivo informado pelo administrador; usuário é notificado.
-- **Pós-condições:** Conta de profissional/recepção ativa com permissões liberadas, ou cadastro rejeitado.
+  - **A1 — E-mail já cadastrado:** sistema recusa o cadastro e sinaliza o campo.
+  - **A2 — Desligamento do funcionário:** administrador inativa a conta (UC16); o profissional deixa de aparecer para novos agendamentos e o histórico de atendimentos é preservado.
+  - **A3 — Funcionário que assume outro papel:** administrador apenas acrescenta o papel ao cadastro existente (ex.: coordenadora que também atende como fisioterapeuta); a matrícula continua a mesma.
+  - **A4 — Saída de um papel:** administrador desativa só aquele papel; os demais papéis e o histórico continuam.
+- **Pós-condições:** Conta do membro da equipe criada e ativa; profissional pronto para configurar a disponibilidade (UC05) e aparecer nos agendamentos.
 
 ---
 
 ### UC05 — Gerenciar disponibilidade
 
 - **Atores:** Profissional (primário); Administrador (secundário, pode configurar em nome do profissional).
-- **Pré-condições:** Profissional autenticado (UC01) e com conta ativa.
+- **Pré-condições:** Profissional cadastrado pelo administrador (UC04), autenticado (UC01) e com conta ativa.
 - **Fluxo principal:**
   1. Profissional acessa a área de disponibilidade.
   2. Profissional define os horários em que está disponível para atendimento.
@@ -343,18 +360,19 @@ Administrador -- UC17
 ### UC06 — Criar agendamento
 
 - **Atores:** Atleta, Responsável, Profissional, Recepção, Administrador.
-- **Pré-condições:** Usuário autenticado; existem profissionais, espaços e horários cadastrados.
+- **Pré-condições:** Usuário autenticado; existem profissionais do CT (cadastrados pelo administrador), espaços e horários cadastrados.
 - **Fluxo principal:**
   1. Usuário acessa "Novo agendamento".
-  2. Usuário informa tipo de agendamento (individual ou em grupo), atleta(s), profissional, data, horário de início e término, espaço, equipamentos (opcional) e repetição.
+  2. Usuário escolhe a modalidade (serviço), o dia e, se quiser, um profissional específico. O sistema mostra cada profissional da modalidade com os horários livres em intervalos de 30 minutos, e o usuário clica no horário desejado. O término é calculado pela duração do serviço e o espaço é escolhido automaticamente entre as salas livres da especialidade. Horários sem profissional ou sem sala livre aparecem em cinza como "horário indisponível".
   3. Usuário aciona "Verificar disponibilidade" *(inclui UC07 — Verificar disponibilidade de recursos)*.
   4. Sistema confirma que todos os recursos estão livres.
   5. Usuário confirma o agendamento.
   6. Sistema cria o agendamento com status "Agendado" e gera um número de protocolo.
 - **Fluxos alternativos:**
   - **A1 — Conflito de disponibilidade:** sistema segue o fluxo de exceção do UC07; usuário ajusta os dados preenchidos (que são preservados) e repete o passo 3.
-  - **A2 — Agendamento em grupo:** sistema limita a quantidade de atletas à capacidade do espaço selecionado.
+  - **A2 — Aula em grupo:** as aulas em grupo seguem a grade montada pelo administrador (UC21). O atleta escolhe a modalidade e o dia e vê as aulas daquele dia com as vagas que sobram (ex.: Pilates com 10 vagas); a sala já foi reservada no cadastro da aula. Turma lotada aparece em cinza, com a opção de lista de espera (UC19).
   - **A3 — Agendamento recorrente:** sistema executa a verificação (UC07) para cada ocorrência da série e lista individualmente as datas com conflito.
+  - **A4 — Escolha do profissional:** o atleta pode pesquisar e escolher com qual profissional quer ser atendido, mas a lista mostra apenas os profissionais ativos do CT, cadastrados pelo administrador, dentro da disponibilidade de cada um.
 - **Pós-condições:** Agendamento (ou série de agendamentos) registrado e disponível para consulta pelos perfis autorizados (UC10).
 - **Relacionamentos:** `<<include>>` UC07 — Verificar disponibilidade de recursos.
 
@@ -403,7 +421,7 @@ Administrador -- UC17
   1. Usuário seleciona o agendamento a cancelar.
   2. Usuário informa uma justificativa.
   3. Sistema altera o status do agendamento para "Cancelado".
-  4. Sistema libera o espaço, o profissional e os equipamentos reservados de volta à agenda.
+  4. Sistema libera o espaço, o profissional e os equipamentos reservados de volta à agenda e encaixa automaticamente o primeiro da lista de espera daquele horário (UC19).
 - **Fluxos alternativos:**
   - **A1 — Cancelamento de agendamento recorrente:** sistema pergunta se o cancelamento se aplica somente à ocorrência selecionada ou a toda a série.
 - **Pós-condições:** Registro do agendamento preservado para auditoria (não é excluído); recursos envolvidos liberados na agenda.
@@ -519,12 +537,74 @@ Administrador -- UC17
 - **Pré-condições:** Administrador autenticado.
 - **Fluxo principal:**
   1. Administrador acessa a área de espaços e equipamentos.
-  2. Administrador cadastra, edita ou inativa salas, quadras e equipamentos.
+  2. Administrador cadastra, edita ou inativa salas, quadras e equipamentos, e indica quais especialidades usam cada sala (ex.: Consultórios 1 e 2 para Nutricionista). Profissionais dessas especialidades passam a usar as salas automaticamente.
   3. Administrador registra bloqueios por manutenção, informando o período de indisponibilidade.
   4. Sistema passa a considerar os bloqueios nas verificações de disponibilidade (UC07).
 - **Fluxos alternativos:**
   - **A1 — Bloqueio sobre horário já reservado:** sistema alerta o administrador sobre os agendamentos que serão impactados.
 - **Pós-condições:** Espaços e equipamentos atualizados e refletidos nas próximas verificações de agendamento.
+
+---
+
+### UC18 — Gerenciar serviços
+
+- **Atores:** Administrador.
+- **Pré-condições:** Administrador autenticado.
+- **Fluxo principal:**
+  1. Administrador acessa a área de serviços.
+  2. Administrador cadastra, edita ou inativa serviços, informando nome, especialidade que atende (ex.: treino funcional para Personal Trainer, consulta nutricional para Nutricionista) e duração padrão.
+  3. Sistema passa a exibir o serviço na criação de agendamentos (UC06), mostrando apenas os profissionais da especialidade correspondente.
+- **Fluxos alternativos:**
+  - **A1 — Inativação de serviço com agendamentos futuros:** sistema alerta o administrador e mantém os agendamentos já marcados.
+- **Pós-condições:** Serviços atualizados e disponíveis para seleção nos agendamentos.
+
+---
+
+### UC19 — Entrar na lista de espera
+
+- **Atores:** Atleta, Responsável, Recepção.
+- **Pré-condições:** O horário escolhido está ocupado (atendimento individual) ou a turma está lotada (aula em grupo).
+- **Fluxo principal:**
+  1. Na escolha de horários (UC06), o usuário vê o horário em cinza e aciona "lista de espera".
+  2. Sistema registra o atleta na fila daquele profissional, serviço e horário, e informa a posição na fila.
+  3. Quando um atendimento desse horário é cancelado (UC09), o sistema oferece a vaga ao primeiro da fila que ainda puder ir: a vaga fica guardada para ele como "aguardando confirmação".
+  4. Sistema avisa o atleta na tela e por e-mail (e o responsável, se houver), com o prazo para confirmar.
+  5. O atleta confirma a vaga dentro do prazo, e ela vira um agendamento normal.
+- **Fluxos alternativos:**
+  - **A1 — Primeiro da fila não pode mais:** se ele marcou outro atendimento no mesmo horário, o sistema pula para o próximo da fila.
+  - **A2 — Não confirmou no prazo:** o prazo é configurado pelo administrador (padrão de 2 horas, e no máximo até 30 minutos antes do início). Vencido o prazo, a rotina automática libera a vaga e a oferece ao próximo da fila.
+  - **A3 — Em cima da hora:** se não houver mais tempo para confirmar antes do início, a vaga fica livre para qualquer um.
+  - **A4 — Sair da lista:** o atleta pode sair da lista de espera pela agenda.
+- **Pós-condições:** Vaga liberada oferecida a quem estava esperando, sem ninguém precisar ficar olhando a agenda.
+
+---
+
+### UC20 — Receber lembretes e avisos
+
+- **Atores:** Sistema (rotina automática); Atleta e Responsável (recebem).
+- **Pré-condições:** Atendimento marcado nas próximas 24 horas, ou vaga liberada pela lista de espera (UC19).
+- **Fluxo principal:**
+  1. De hora em hora, o sistema procura atendimentos das próximas 24 horas que ainda não receberam lembrete.
+  2. Sistema envia o lembrete na tela e por e-mail, com serviço, profissional, data, hora e espaço.
+  3. Sistema marca o atendimento como lembrado, para não repetir.
+- **Pós-condições:** Atleta avisado com antecedência, o que reduz faltas.
+
+---
+
+### UC21 — Montar a grade de aulas em grupo
+
+- **Atores:** Administrador.
+- **Pré-condições:** Modalidade em grupo cadastrada (UC18, com mais de 1 vaga), professor da especialidade cadastrado (UC04) e salas ligadas à especialidade (UC17).
+- **Fluxo principal:**
+  1. Administrador acessa a grade de aulas e cadastra uma aula: modalidade, professor, sala, dia da semana, horário, vagas (opcional) e período de vigência.
+  2. Sistema confere se a sala atende a especialidade da modalidade.
+  3. Sistema confere se a sala está livre naquele dia e horário, durante o período de vigência, respeitando a capacidade da sala.
+  4. Sistema confere se o professor não dá outra aula no mesmo horário.
+  5. Sistema salva a aula, que passa a se repetir toda semana dentro da vigência e aparece para os atletas no UC06.
+- **Fluxos alternativos:**
+  - **A1 — Sala ou professor ocupados:** sistema recusa o cadastro e diz o motivo; sem sala livre, não tem aula.
+  - **A2 — Aula suspensa num dia:** o professor registra um bloqueio (UC05); naquele dia a aula aparece como suspensa.
+- **Pós-condições:** Aula na grade, com a sala reservada nos dias e horários dela.
 
 ## Rastreabilidade com os Requisitos do Brainstorm
 
@@ -534,8 +614,8 @@ Administrador -- UC17
 | BS02 | Cadastro de profissionais | UC04 |
 | BS03 | Avaliações físicas e indicadores | UC12 |
 | BS04 | Criação/atualização de planos de treino | UC13 |
-| BS05 | Agendamento de atendimentos | UC06 |
-| BS06 | Controle de disponibilidade (atletas, profissionais, espaços, equipamentos) | UC05, UC07, UC17 |
+| BS05 | Agendamento de atendimentos | UC06, UC18, UC19 |
+| BS06 | Controle de disponibilidade (atletas, profissionais, espaços, equipamentos) | UC05, UC07, UC17, UC21 |
 | BS07 | Histórico de evolução do atleta | UC12, UC13, UC14 |
 | BS08 | Registro de observações e acompanhamento | UC11 |
 | BS09 | Relatórios e indicadores de progresso | UC14, UC15 |
@@ -543,11 +623,11 @@ Administrador -- UC17
 | BS11 | Informações sobre agenda e compromissos | UC06, UC10 |
 | BS12 | Diferentes níveis de acesso por perfil | UC01, UC10, UC16 |
 | BS13 | Confidencialidade e segurança dos dados sensíveis | UC01, UC02, UC04, UC16 |
-| BS14 | Organização das rotinas e operações do CT | UC08, UC09, UC16, UC17 |
-| BS15 | Comunicação e compartilhamento de informações entre equipe e atletas | UC11 (parcial) |
+| BS14 | Organização das rotinas e operações do CT | UC08, UC09, UC16, UC17, UC18, UC21 |
+| BS15 | Comunicação e compartilhamento de informações entre equipe e atletas | UC11, UC20 |
 
 <p align="justify">
-O requisito <strong>BS15</strong> é atendido apenas parcialmente nesta versão: o compartilhamento de informações ocorre por meio do campo de observações associado a agendamentos e avaliações (UC06, UC11, UC12). Funcionalidades de mensagens e notificações automatizadas — já mapeadas no Mapa Mental na seção "Automação" — não fazem parte do MVP e ficam previstas para iterações futuras.
+O requisito <strong>BS15</strong> é atendido apenas parcialmente nesta versão: o compartilhamento de informações ocorre por meio do campo de observações associado a agendamentos e avaliações (UC06, UC11, UC12). Os avisos automáticos mapeados no Mapa Mental na seção "Automação" (lembretes, aviso de vaga e lista de espera) foram incluídos nos UC19 e UC20; mensagens livres entre equipe e atletas ficam para iterações futuras.
 </p>
 
 ## Conclusão
@@ -572,3 +652,4 @@ A definição dos casos de uso permitiu transformar os requisitos elicitados no 
 | -- | -- | -- | -- |
 | 23/09/2026 | 1.0 | Criação do documento de casos de uso, a partir do Brainstorm, 5W2H, Pesquisa, Mapa Mental e Protótipo de Baixa Fidelidade | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 23/09/2026 | 1.1 | Diagrama de casos de uso dividido em visão geral por área funcional e quatro diagramas detalhados, para reduzir o cruzamento de linhas | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 26/10/2026 | 1.2 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação; inclusão do cadastro de serviços (UC18/RF19), pedido no MVP do enunciado; UC04 com papéis acumuláveis; UC06 com escolha por modalidade e caixinhas de horário; aulas em grupo, lista de espera (UC19) e lembretes (UC20); grade de aulas (UC21), salas por especialidade e confirmação da vaga | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |

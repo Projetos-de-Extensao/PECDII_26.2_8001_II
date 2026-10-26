@@ -69,7 +69,7 @@ O protótipo parte da premissa de que cada usuário acessa somente as informaç�
 
 | Perfil | O que enxerga na agenda | Pode criar agendamento? |
 | -- | -- | -- |
-| Atleta | Apenas os próprios agendamentos | Sim, para si (conforme política do CT) |
+| Atleta | Apenas os próprios agendamentos | Sim, para si, escolhendo entre os profissionais do CT |
 | Responsável | Apenas os agendamentos do(s) atleta(s) vinculado(s) | Sim, para o dependente |
 | Profissional | Apenas a própria agenda de atendimentos | Sim, dentro da própria disponibilidade |
 | Recepção | Agenda geral do CT | Sim, para qualquer atleta/profissional |
@@ -119,7 +119,7 @@ scale 1.3
 **Regras de negócio**
 
 - Credenciais inválidas retornam mensagem genérica (*"E-mail ou senha incorretos"*), sem informar qual dos dois falhou, evitando enumeração de usuários.
-- Contas pendentes de autorização da administração são bloqueadas com a mensagem *"Cadastro em análise pela administração"*.
+- Contas inativas são bloqueadas com a mensagem *"Conta inativa. Procure a administração do CT"*.
 - Após o login, o sistema aplica o controle de acesso por perfil, carregando apenas os dados permitidos.
 
 ---
@@ -152,7 +152,7 @@ scale 1.3
   ..
   [  Cadastrar  ] | [ Voltar ]
   ..
-  <size:10>Perfis de profissional e funcionário dependem de autorização da administração.</size>
+  <size:10>Contas de profissionais e recepção são criadas pela administração do CT.</size>
 }
 @endsalt
 ```
@@ -166,17 +166,17 @@ scale 1.3
 | Telefone | Campo de texto | Sim | Máscara `(DD) 9XXXX-XXXX` |
 | Senha | Campo de senha | Sim | Mínimo de 8 caracteres, com letras e números |
 | Confirmar senha | Campo de senha | Sim | Deve ser idêntica ao campo Senha |
-| Tipo de usuário | Seleção | Sim | Atleta, Responsável, Profissional, Recepção ou Administrador |
+| Tipo de usuário | Seleção | Sim | Atleta ou Responsável (a equipe do CT é cadastrada pelo administrador) |
 | Data de nascimento | Campo de data | Sim | Define se o cadastro exige vínculo com responsável |
 | E-mail do responsável | Campo de texto | Condicional | Exibido apenas quando o atleta é menor de 18 anos |
 | Aceite dos termos | Caixa de seleção | Sim | Registra o consentimento exigido pela LGPD (data e hora) |
-| Cadastrar | Botão primário | — | Cria a conta e dispara o fluxo de aprovação quando aplicável |
+| Cadastrar | Botão primário | — | Cria a conta de atleta ou responsável |
 
 **Regras de negócio**
 
 - **Menores de idade:** quando a data de nascimento indicar idade inferior a 18 anos, o bloco de vínculo torna-se obrigatório e a conta é associada a um pai ou responsável, que passa a visualizar os agendamentos do dependente (ECA e LGPD).
-- **Aprovação administrativa:** cadastros com perfil de profissional, recepção ou administrador ficam com status *pendente* até autorização da administração; até lá, não recebem permissões operacionais.
-- **Autocadastro de atleta:** perfis de atleta e responsável podem ser ativados diretamente, conforme a política do CT.
+- **Equipe do CT:** profissionais, recepção e administradores não usam esta tela. Eles fazem parte da equipe do CT, e suas contas são criadas pelo administrador (UC04).
+- **Autocadastro de atleta:** somente atletas e responsáveis criam a própria conta, que é ativada diretamente, conforme a política do CT.
 - O sistema recusa e-mails já cadastrados, sinalizando o campo com mensagem de erro.
 
 ---
@@ -194,11 +194,11 @@ scale 1.3
   {
     Tipo de agendamento      | ^Individual^
     Atleta(s) participante(s)| ^Selecionar atletas^
+    Serviço                  | ^Selecionar serviço^
     Profissional responsável | ^Selecionar profissional^
     Data do atendimento      | "DD/MM/AAAA    "
-    Horário de início        | "HH:MM         "
-    Horário de término       | "HH:MM         "
-    Espaço                   | ^Selecionar espaço^
+    Horário                  | [08:00] | [08:30] | [09:00]
+    Espaço                   | "Automático    "
     Equipamentos             | ^Selecionar equipamentos^
     Repetição                | ^Único^
   }
@@ -219,11 +219,12 @@ scale 1.3
 | -- | -- | -- | -- |
 | Tipo de agendamento | Seleção | Sim | Individual ou em grupo; em grupo libera a seleção múltipla de atletas |
 | Atleta(s) participante(s) | Seleção (múltipla no modo grupo) | Sim | Lista filtrada pelas permissões do usuário logado |
-| Profissional responsável | Seleção | Sim | Somente profissionais ativos e habilitados para o tipo de atendimento |
+| Serviço | Seleção | Sim | Serviços ativos cadastrados pelo administrador (UC18); filtra os profissionais da especialidade correspondente |
+| Profissional responsável | Seleção | Sim | Somente profissionais ativos do CT, cadastrados pelo administrador e habilitados para o tipo de atendimento |
 | Data do atendimento | Campo de data | Sim | Não permite datas passadas |
-| Horário de início | Campo de hora | Sim | Deve estar dentro do horário de funcionamento do CT |
-| Horário de término | Campo de hora | Sim | Deve ser posterior ao horário de início |
-| Espaço | Seleção | Sim | Lista de salas, quadras e áreas do CT |
+| Horário | Caixinhas de horário | Sim | Só aparecem horários livres, de 30 em 30 minutos, dentro da disponibilidade de cada profissional da modalidade |
+| Término | Calculado | — | Início + duração do serviço; o usuário não digita |
+| Espaço | Automático | — | O sistema escolhe um espaço livre entre os espaços do serviço; a recepção pode trocar pelo painel |
 | Equipamentos | Seleção múltipla | Não | Reserva os itens pelo período do atendimento |
 | Repetição | Seleção | Sim | Único ou recorrente (diário, semanal, quinzenal) com data-limite |
 | Observações | Área de texto | Não | Campo livre, sem dados sensíveis de saúde |
@@ -458,7 +459,7 @@ A tabela a seguir associa cada tela do protótipo às operações previstas no b
 | -- | -- | -- |
 | Tela 1 — Login | `POST /auth/login` | Usuário, Perfil |
 | Tela 1b — Cadastro | `POST /usuarios` | Usuário, Perfil, Responsável |
-| Tela 2 — Agendamento | `GET /atletas`, `GET /profissionais`, `GET /espacos`, `GET /equipamentos` | Atleta, Profissional, Espaço, Equipamento |
+| Tela 2 — Agendamento | `GET /atletas`, `GET /servicos`, `GET /profissionais`, `GET /espacos`, `GET /equipamentos` | Atleta, Profissional, Espaço, Equipamento |
 | Tela 3 — Verificação | `POST /agendamentos/disponibilidade` | Agendamento, Bloqueio de manutenção |
 | Tela 4 — Confirmação | `POST /agendamentos` | Agendamento |
 | Tela 5 — Minha agenda | `GET /agendamentos` | Agendamento, Perfil |
@@ -495,3 +496,4 @@ As telas aqui definidas servirão de base para o levantamento de requisitos, par
 | 01/09/26 | 1.0    | Criação do documento                                                                     | Filipe Andrade |
 | 01/09/26 | 1.1    | Adicionadas as telas de login, cadastro e agendamento com verificação de disponibilidade | Filipe Andrade |
 | 01/09/26 | 1.2    | Adicionados fluxo de navegação, perfis de acesso, rastreabilidade com a API e conclusão  | Filipe Andrade |
+| 26/10/2026 | 1.3 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação; inclusão do cadastro de serviços (UC18/RF19), pedido no MVP do enunciado; Tela 2 com caixinhas de horário e término e espaço automáticos | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |

@@ -37,7 +37,7 @@ Compreender profundamente as necessidades dos diferentes perfis de usuário do C
 ### Público-Alvo
 
 - **Atletas** do centro (do amador ao alto rendimento), que acompanham sua própria evolução e, quando menores de idade, dependem de um **Responsável** legal (ECA).
-- **Equipe técnica (Profissionais)** — Personal Trainer, Preparador Físico, Fisioterapeuta e Nutricionista — que planeja e registra treinos e avaliações.
+- **Equipe técnica (Profissionais)** — funcionários do CT: Personal Trainer, Preparador Físico, Fisioterapeuta e Nutricionista — que planeja e registra treinos e avaliações.
 - **Recepção**, que realiza agendamentos e consultas em nome de atletas e profissionais.
 - **Administrador/Gestão do CT**, que precisa de visão geral de agenda, ocupação, usuários e resultados.
 
@@ -106,7 +106,7 @@ As personas foram construídas a partir dos perfis de usuário já identificados
 
 | Campo | Descrição |
 | -- | -- |
-| Perfil | Personal Trainer da equipe técnica do CT |
+| Perfil | Personal Trainer contratada pelo CT, integrante da equipe técnica |
 | Objetivos | Registrar avaliações físicas e planos de treino em um único lugar; visualizar sua própria agenda de atendimentos |
 | Frustrações | Hoje usa múltiplas planilhas e anotações dispersas; dificuldade de comparar avaliações antigas com as atuais |
 | Necessidades | Definir a própria disponibilidade e bloqueios; prescrever e atualizar planos de treino com histórico de versões |
@@ -126,8 +126,8 @@ As personas foram construídas a partir dos perfis de usuário já identificados
 | -- | -- |
 | Perfil | Coordenadora do CT, responsável pela gestão administrativa |
 | Objetivos | Gerenciar usuários, permissões, espaços e equipamentos; acompanhar relatórios de desempenho e ocupação |
-| Frustrações | Ausência de indicadores consolidados; aprovação manual e informal de novos profissionais |
-| Necessidades | Aprovar cadastros de profissionais/recepção; gerenciar bloqueios de espaços/equipamentos por manutenção; visão irrestrita da agenda |
+| Frustrações | Ausência de indicadores consolidados; cadastro manual e informal da equipe técnica |
+| Necessidades | Cadastrar os profissionais e a recepção do CT; gerenciar bloqueios de espaços/equipamentos por manutenção; visão irrestrita da agenda |
 
 ---
 
@@ -154,7 +154,7 @@ Desse problema central derivam perguntas mais específicas ("Como podemos...?") 
 | Responsável (Marcos) | precisa visualizar os agendamentos e a evolução do dependente com segurança | porque dados de saúde de menores exigem consentimento e controle de acesso, conforme o ECA e a LGPD |
 | Profissional (Ana) | precisa registrar avaliações e planos de treino em um só lugar | porque hoje usa múltiplas planilhas dispersas, o que dificulta comparar resultados ao longo do tempo |
 | Recepção (Camila) | precisa de verificação automática de disponibilidade ao agendar | porque conflitos de horário entre atleta, profissional, espaço e equipamento hoje só são percebidos na hora do atendimento |
-| Administradora (Renata) | precisa de uma visão geral de usuários, agenda e recursos | porque a aprovação de cadastros e a gestão de bloqueios por manutenção hoje são feitas de forma manual e informal |
+| Administradora (Renata) | precisa de uma visão geral de usuários, agenda e recursos | porque o cadastro da equipe e a gestão de bloqueios por manutenção hoje são feitas de forma manual e informal |
 
 ---
 
@@ -329,3 +329,4 @@ Este documento se apoia diretamente nos seguintes artefatos do projeto, que deve
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 27/09/2026 | 1.0 | Criação do documento de Design Thinking, consolidando Pesquisa, Brainstorm, 5W2H, Mapa Mental, Protótipo de Baixa Fidelidade, Casos de Uso e Diagrama de Classes sob as fases de Empatia, Definição, Ideação, Prototipagem e Teste | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 26/10/2026 | 1.1 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |

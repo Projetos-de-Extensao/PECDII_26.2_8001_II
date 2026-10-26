@@ -50,7 +50,7 @@ A equipe organizou as ideias por temas: objetivo e escopo do produto, perfis de 
 </p>
 
 <p align="justify">
-<strong>Vitor Magalhães</strong> - O cadastro de atletas deve permitir o vínculo com um responsável quando necessário, e os cadastros de profissionais e recepção devem seguir o processo de aprovação administrativa previsto.
+<strong>Vitor Magalhães</strong> - O cadastro de atletas deve permitir o vínculo com um responsável quando necessário, e os profissionais e a recepção, por fazerem parte da equipe do CT, devem ser cadastrados pela administração.
 </p>
 
 <p align="justify">
@@ -170,3 +170,4 @@ A aplicação do brainstorm permitiu consolidar as necessidades iniciais do PKZ 
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 14/09/2026 | 1.0 | Criação do documento | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 26/10/2026 | 1.1 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |

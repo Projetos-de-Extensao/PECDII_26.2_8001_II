@@ -29,7 +29,7 @@ title Mapa Mental - PKZ LAB (Plataforma de Performance Integrada)
 ** Usuários
 *** Atleta / Responsável
 **** Criar conta
-**** Buscar profissionais
+**** Buscar profissionais do CT
 **** Agendar sessão
 **** Reagendar
 **** Cancelar
@@ -46,12 +46,12 @@ title Mapa Mental - PKZ LAB (Plataforma de Performance Integrada)
 **** Reagendar / cancelar
 *** Administrador
 **** Gerenciar usuários
-**** Gerenciar profissionais
+**** Cadastrar profissionais do CT
 **** Gerenciar serviços
 **** Gerenciar espaços e recursos
 **** Gerenciar permissões
 
-** Profissionais
+** Profissionais (equipe do CT)
 *** Personal Trainer
 *** Preparador Físico
 *** Nutricionista
@@ -79,7 +79,7 @@ left side
 
 ** Agendamento
 *** Escolher serviço
-*** Escolher profissional
+*** Escolher profissional do CT
 *** Escolher local
 *** Escolher data e horário
 *** Confirmar / reagendar / cancelar
@@ -151,3 +151,4 @@ O mapa mental é uma ficha de estudos que ajuda a dar uma visão geral do tema, 
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 08/09/2026 | 1.0 | Criação do mapa mental do PKZ LAB | _(preencher com a equipe)_ |
+| 26/10/2026 | 1.1 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
