@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'drf_spectacular',
     'estrutura',
     'pessoas',
     'agenda',
@@ -125,6 +127,25 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# API (Django REST Framework). Por enquanto o login é o mesmo do admin (sessão);
+# quem não estiver logado não vê nada.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# Documentação da API: /api/docs/ (Swagger) e /api/redoc/
+SPECTACULAR_SETTINGS = {
+    "TITLE": "PKZ LAB API",
+    "DESCRIPTION": "Back-end do centro de treinamento PKZ LAB.",
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # a documentação é aberta; os dados não
+}
 
 # Nos testes automáticos (python manage.py test) as senhas usam um algoritmo rápido,
 # só para os testes rodarem em segundos. O sistema de verdade continua com o algoritmo seguro padrão.

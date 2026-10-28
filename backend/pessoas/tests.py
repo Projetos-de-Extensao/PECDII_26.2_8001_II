@@ -41,3 +41,19 @@ class ProfissionaisAtivos(TestCase):
         self.p.ativo = False
         self.p.save()
         self.assertNotIn(self.p, Profissional.ativos())
+
+
+class ApiDeProfissionais(TestCase):
+    def test_lista_so_ativos_da_especialidade(self):
+        from rest_framework.test import APIClient
+        nutri = Especialidade.objects.get(nome="Nutricionista")
+        personal = Especialidade.objects.get(nome="Personal Trainer")
+        nina = profissional("nina", "Nina", "M001", nutri)
+        profissional("teo", "Teo", "M002", personal)
+        inativo = profissional("ivo", "Ivo", "M003", nutri)
+        inativo.ativo = False
+        inativo.save()
+        api = APIClient()
+        api.force_authenticate(nina.funcionario.usuario)
+        r = api.get(f"/api/profissionais/?especialidade={nutri.pk}")
+        self.assertEqual([p["nome"] for p in r.data["results"]], ["Nina"])

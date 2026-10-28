@@ -76,3 +76,48 @@ class CancelarEReagendar(Base):
         self.assertEqual(novo.substitui, original)
         self.assertEqual(original.substituido_por, novo)
         self.assertEqual(novo.fim - novo.inicio, timedelta(minutes=50))
+
+
+class ApiDeAgendamento(Base):
+    def setUp(self):
+        super().setUp()
+        from rest_framework.test import APIClient
+        self.api = APIClient()
+        self.api.force_authenticate(self.nutricionista.funcionario.usuario)
+
+    def test_sem_login_nao_ve_nada(self):
+        from rest_framework.test import APIClient
+        self.assertEqual(APIClient().get("/api/agendamentos/").status_code, 403)
+
+    def test_cria_pela_api(self):
+        r = self.api.post("/api/agendamentos/", {"servico": self.consulta.pk, "profissional": self.nutricionista.pk,
+                                                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()})
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["status"], "AGENDADO")
+        self.assertEqual(len(r.data["protocolo"]), 10)
+
+    def test_regra_do_model_vira_erro_400(self):
+        r = self.api.post("/api/agendamentos/", {"servico": self.consulta.pk, "profissional": self.treinador.pk,
+                                                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("profissional", r.data)
+
+    def test_cancelar_e_reagendar(self):
+        a, b = self.agendar(), self.agendar(hora(2, 11))
+        self.assertEqual(self.api.post(f"/api/agendamentos/{a.pk}/cancelar/", {"justificativa": ""}).status_code, 400)
+        r = self.api.post(f"/api/agendamentos/{a.pk}/cancelar/", {"justificativa": "Atleta doente"})
+        self.assertEqual(r.data["status"], "CANCELADO")
+        self.assertEqual(self.api.post(f"/api/agendamentos/{a.pk}/cancelar/", {"justificativa": "De novo"}).status_code, 400)
+        r = self.api.post(f"/api/agendamentos/{b.pk}/reagendar/", {"inicio": hora(3, 9).isoformat()})
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["substitui"], b.pk)
+
+    def test_nao_apaga(self):
+        a = self.agendar()
+        self.assertEqual(self.api.delete(f"/api/agendamentos/{a.pk}/").status_code, 405)
+
+    def test_filtra_por_status(self):
+        self.agendar().cancelar("Atleta doente")
+        self.agendar(hora(2, 11))
+        r = self.api.get("/api/agendamentos/?status=AGENDADO")
+        self.assertEqual(r.data["count"], 1)

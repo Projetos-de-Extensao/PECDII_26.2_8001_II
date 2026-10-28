@@ -57,3 +57,27 @@ class PrazoDeConfirmacao(TestCase):
         agora = timezone.now()
         self.assertEqual(Configuracao.atual().prazo_para_confirmar(agora + timedelta(days=2), agora),
                          agora + timedelta(hours=4))
+
+
+class ApiDaEstrutura(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from rest_framework.test import APIClient
+        self.api = APIClient()
+        self.comum = User.objects.create_user("comum")
+        self.admin = User.objects.create_user("chefe", is_staff=True)
+
+    def test_logado_consulta_mas_nao_altera(self):
+        self.api.force_authenticate(self.comum)
+        self.assertEqual(self.api.get("/api/especialidades/").data["count"], 4)
+        self.assertEqual(self.api.post("/api/especialidades/", {"nome": "Psicólogo"}).status_code, 403)
+
+    def test_admin_cadastra(self):
+        self.api.force_authenticate(self.admin)
+        self.assertEqual(self.api.post("/api/especialidades/", {"nome": "Psicólogo"}).status_code, 201)
+
+
+class Documentacao(TestCase):
+    def test_swagger_e_schema_abrem_sem_login(self):
+        self.assertEqual(self.client.get("/api/docs/").status_code, 200)
+        self.assertEqual(self.client.get("/api/schema/").status_code, 200)
