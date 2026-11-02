@@ -1,8 +1,8 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import viewsets
+from rest_framework import mixins, permissions, viewsets
 
-from .models import Profissional
-from .serializers import ProfissionalSerializer
+from .models import Atleta, Profissional
+from .serializers import AtletaSerializer, ProfissionalSerializer
 
 
 @extend_schema(parameters=[OpenApiParameter("especialidade", int, description="Só quem atende esta especialidade.")])
@@ -18,3 +18,19 @@ class ProfissionalViewSet(viewsets.ReadOnlyModelViewSet):
         if especialidade:
             qs = qs.filter(especialidades=especialidade)
         return qs.order_by("funcionario__usuario__first_name")
+
+
+class AtletaViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Atleta.objects.select_related("usuario", "responsavel").all()
+    serializer_class = AtletaSerializer
+
+    def get_permissions(self):
+        # UC02: qualquer visitante pode se cadastrar como atleta (POST /api/atletas/)
+        if self.action == "create":
+            return [permissions.AllowAny()]
+        return super().get_permissions()
