@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import Agendamento,Aviso
-
+from .perfis import pode_agendar_para
 
 def erro_da_api(erro):
     # as regras ficam nos models; aqui só traduz o erro do Django para o formato da API (400)
@@ -13,11 +13,16 @@ def erro_da_api(erro):
 class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
-        fields = ["id", "protocolo", "servico", "profissional", "espaco", "inicio", "fim", "status",
+        fields = ["id", "protocolo","atleta", "servico", "profissional", "espaco", "inicio", "fim", "status",
                   "justificativa", "substitui", "criado_em", "equipamentos"]
         read_only_fields = ["status", "justificativa", "substitui"]
 
     def validate(self, attrs):
+        # UC06: atleta marca para si, responsável para o dependente, equipe para qualquer um
+        atleta = attrs.get("atleta")
+        if atleta and not pode_agendar_para(self.context["request"].user, atleta):
+            raise serializers.ValidationError({"atleta": "Você só pode agendar para você mesmo ou para os seus dependentes."})
+
         dados = {campo: valor for campo, valor in attrs.items() if campo != "equipamentos"}  # lista não entra no construtor
         try:
             Agendamento(**dados).clean()

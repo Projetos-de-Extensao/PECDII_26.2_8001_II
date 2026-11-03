@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from estrutura.models import Espaco, Especialidade, Servico,Equipamento
-from pkzlab.testes_comuns import hora, profissional
+from pkzlab.testes_comuns import hora, profissional,atleta
 
 from .models import Agendamento,Aviso
 
@@ -20,10 +20,12 @@ class Base(TestCase):
         self.consulta = Servico.objects.create(nome="Consulta", especialidade=self.nutri, duracao_minutos=50)
         self.nutricionista = profissional("nina", "Nina", "M001", self.nutri)
         self.treinador = profissional("teo", "Teo", "M002", self.personal)
+        self.joao = atleta("joao", "João")
+
 
     def agendar(self, inicio=None, **kw):
-        dados = dict(servico=self.consulta, profissional=self.nutricionista, espaco=self.consultorio,
-                     inicio=inicio or hora(2, 9))
+        dados = dict(atleta=self.joao, servico=self.consulta, profissional=self.nutricionista, espaco=self.consultorio,
+                        inicio=inicio or hora(2, 9))
         dados.update(kw)
         return Agendamento.objects.create(**dados)
 
@@ -90,15 +92,17 @@ class ApiDeAgendamento(Base):
         self.assertEqual(APIClient().get("/api/agendamentos/").status_code, 403)
 
     def test_cria_pela_api(self):
-        r = self.api.post("/api/agendamentos/", {"servico": self.consulta.pk, "profissional": self.nutricionista.pk,
+        r = self.api.post("/api/agendamentos/", {"atleta": self.joao.pk, "servico": self.consulta.pk,
+                                                 "profissional": self.nutricionista.pk,
                                                  "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()})
         self.assertEqual(r.status_code, 201, r.data)
         self.assertEqual(r.data["status"], "AGENDADO")
         self.assertEqual(len(r.data["protocolo"]), 10)
 
     def test_regra_do_model_vira_erro_400(self):
-        r = self.api.post("/api/agendamentos/", {"servico": self.consulta.pk, "profissional": self.treinador.pk,
-                                                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()})
+        r = self.api.post("/api/agendamentos/", {"atleta": self.joao.pk, "servico": self.consulta.pk,
+                                                 "profissional": self.treinador.pk,
+                                                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()}) 
         self.assertEqual(r.status_code, 400)
         self.assertIn("profissional", r.data)
 
@@ -173,7 +177,7 @@ class ReservaDeEquipamentos(Base):
         from rest_framework.test import APIClient
         api = APIClient()
         api.force_authenticate(self.nutricionista.funcionario.usuario)
-        dados = {"servico": self.consulta.pk, "profissional": self.nutricionista.pk, "espaco": self.consultorio.pk,
+        dados = {"atleta": self.joao.pk, "servico": self.consulta.pk, "profissional": self.nutricionista.pk, "espaco": self.consultorio.pk,
                  "inicio": hora(2, 9).isoformat(), "equipamentos": [self.bioimpedancia.pk]}
         r = api.post("/api/agendamentos/", dados, format="json")
         self.assertEqual(r.status_code, 201, r.data)
@@ -229,4 +233,78 @@ class Avisos(Base):
         self.assertEqual(self.api.delete(f"/api/avisos/{aviso.pk}/").status_code, 405)
 
     def test_sem_login_nada(self):
-        self.assertEqual(self.api.get("/api/avisos/").status_code, 403)             # o segundo não ficou gravado pela metade    
+        self.assertEqual(self.api.get("/api/avisos/").status_code, 403) 
+class AtletaNoAgendamento(Base):
+    def setUp(self):
+        super().setUp()
+        from datetime import date
+        from rest_framework.test import APIClient
+        from pessoas.cadastros import cadastrar_responsavel
+        self.api = APIClient()
+        self.maria = atleta("maria", "Maria")
+        self.mae = cadastrar_responsavel(email="mae@x.com", nome="Mãe", senha="senha12345", aceitou_termos=True)
+        self.pedro = atleta("pedro", "Pedro", nascimento=date(2014, 3, 10), responsavel=self.mae)
+        self.consultorio2 = Espaco.objects.create(nome="Consultório 2")
+        self.consultorio2.especialidades.add(self.nutri)
+        self.bia = profissional("bia", "Bia", "M003", self.nutri)
+
+    def pedido(self, atleta_alvo, **kw):
+        dados = {"atleta": atleta_alvo.pk, "servico": self.consulta.pk, "profissional": self.nutricionista.pk,
+                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()}
+        dados.update(kw)
+        return self.api.post("/api/agendamentos/", dados, format="json")
+
+    def protocolos(self, usuario):
+        self.api.force_authenticate(usuario)
+        return {a["protocolo"] for a in self.api.get("/api/agendamentos/").data["results"]}
+
+    def test_atleta_e_obrigatorio(self):
+        self.api.force_authenticate(self.nutricionista.funcionario.usuario)
+        r = self.api.post("/api/agendamentos/", {"servico": self.consulta.pk, "profissional": self.nutricionista.pk,
+                                                 "espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat()})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("atleta", r.data)
+
+    def test_atleta_marca_para_ele_mesmo(self):
+        self.api.force_authenticate(self.joao.usuario)
+        self.assertEqual(self.pedido(self.joao).status_code, 201)
+
+    def test_atleta_nao_marca_para_outro(self):
+        self.api.force_authenticate(self.joao.usuario)
+        r = self.pedido(self.maria)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("atleta", r.data)
+        self.assertFalse(Agendamento.objects.exists())
+
+    def test_responsavel_marca_para_o_dependente_e_nao_para_outro(self):
+        self.api.force_authenticate(self.mae.usuario)
+        self.assertEqual(self.pedido(self.pedro).status_code, 201)
+        self.assertEqual(self.pedido(self.maria, inicio=hora(2, 11).isoformat()).status_code, 400)
+
+    def test_cada_um_ve_so_a_sua_parte_da_agenda(self):
+        do_joao = self.agendar()
+        da_maria = self.agendar(hora(2, 10), atleta=self.maria, profissional=self.bia, espaco=self.consultorio2)
+        do_pedro = self.agendar(hora(2, 11), atleta=self.pedro)
+        self.assertEqual(self.protocolos(self.joao.usuario), {do_joao.protocolo})
+        self.assertEqual(self.protocolos(self.mae.usuario), {do_pedro.protocolo})
+        self.assertEqual(self.protocolos(self.nutricionista.funcionario.usuario), {do_joao.protocolo, do_pedro.protocolo})
+        self.assertEqual(self.protocolos(self.bia.funcionario.usuario), {da_maria.protocolo})
+
+    def test_recepcao_ve_a_agenda_toda(self):
+        from pessoas.models import Recepcao
+        from pkzlab.testes_comuns import funcionario
+        carla = funcionario("carla", "Carla", "F002")
+        Recepcao.objects.create(funcionario=carla)
+        self.agendar()
+        self.agendar(hora(2, 10), atleta=self.maria, profissional=self.bia, espaco=self.consultorio2)
+        self.assertEqual(len(self.protocolos(carla.usuario)), 2)
+
+    def test_atleta_nao_cancela_o_de_outro(self):
+        da_maria = self.agendar(atleta=self.maria)
+        self.api.force_authenticate(self.joao.usuario)
+        r = self.api.post(f"/api/agendamentos/{da_maria.pk}/cancelar/", {"justificativa": "Teste"})
+        self.assertEqual(r.status_code, 404)
+
+    def test_reagendar_mantem_o_atleta(self):
+        novo = self.agendar(atleta=self.maria).reagendar(hora(3, 9))
+        self.assertEqual(novo.atleta, self.maria)                    # o segundo não ficou gravado pela metade    

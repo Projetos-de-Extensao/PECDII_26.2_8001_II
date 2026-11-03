@@ -3,21 +3,35 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 
 from .models import Agendamento,Aviso
 from .serializers import AgendamentoSerializer, CancelarSerializer, ReagendarSerializer, erro_da_api,AvisoSerializer
+from .perfis import profissional_de, ve_a_agenda_toda
 
 
 @extend_schema(parameters=[OpenApiParameter("status", str, enum=Agendamento.Status.values)])
 class AgendamentoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                          viewsets.GenericViewSet):
     # Sem editar nem apagar: agendamento muda só por cancelar (UC09) ou reagendar (UC08).
-    # TODO: quando existir o Atleta, filtrar pelo perfil de quem está logado (UC10).
-    queryset = Agendamento.objects.select_related("servico", "profissional__funcionario__usuario", "espaco")
+    
+    queryset = Agendamento.objects.select_related("atleta__usuario", "servico", "profissional__funcionario__usuario",
+                                                  "espaco")
     serializer_class = AgendamentoSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
+        usuario = self.request.user
+        if not ve_a_agenda_toda(usuario):
+            # UC10: cada um vê só a parte da agenda que é dele
+            pode_ver = Q(pk__in=[])                                   # começa vazio e vai somando
+            if profissional_de(usuario):
+                pode_ver |= Q(profissional=profissional_de(usuario))  # profissional: os atendimentos dele
+            if getattr(usuario, "atleta", None):
+                pode_ver |= Q(atleta=usuario.atleta)                  # atleta: os dele
+            if getattr(usuario, "responsavel", None):
+                pode_ver |= Q(atleta__responsavel=usuario.responsavel)  # responsável: os dos dependentes
+            qs = qs.filter(pode_ver)
         if s := self.request.query_params.get("status"):
             qs = qs.filter(status=s)
         return qs

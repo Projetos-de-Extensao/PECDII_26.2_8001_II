@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from estrutura.models import Espaco, Servico,Equipamento
-from pessoas.models import Profissional
+from pessoas.models import Profissional,Atleta
 
 
 def novo_protocolo():
@@ -19,6 +19,7 @@ class Agendamento(models.Model):
         SUBSTITUIDO = "SUBSTITUIDO", "Substituído"
 
     protocolo = models.CharField(max_length=10, unique=True, default=novo_protocolo, editable=False)
+    atleta = models.ForeignKey(Atleta, on_delete=models.PROTECT, related_name="agendamentos")
     servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="agendamentos")
     profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="agendamentos")
     espaco = models.ForeignKey(Espaco, on_delete=models.PROTECT, related_name="agendamentos")
@@ -82,13 +83,13 @@ class Agendamento(models.Model):
             raise ValidationError("Só dá para reagendar um agendamento com status Agendado.")
         self.status = self.Status.SUBSTITUIDO
         self.save(update_fields=["status"])
-        novo = Agendamento.objects.create(servico=self.servico, profissional=self.profissional,
+        novo = Agendamento.objects.create(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
                                           espaco=self.espaco, inicio=novo_inicio, substitui=self)
         novo.reservar_equipamentos(self.equipamentos.all())  # leva os mesmos equipamentos para o novo horário
         return novo
 
     def __str__(self):
-        return f"{self.protocolo} - {self.servico} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
+            return f"{self.protocolo} - {self.atleta} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
 class Aviso(models.Model):
     
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="avisos")
