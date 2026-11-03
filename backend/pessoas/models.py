@@ -15,6 +15,7 @@ com a mesma matrícula. O Usuário do diagrama é o login do próprio Django (au
 from datetime import date
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from estrutura.models import Especialidade
@@ -85,15 +86,24 @@ class Administrador(Papel):
 
 
 class Responsavel(models.Model):
-    nome = models.CharField(max_length=150)
+    # Responsável legal pelo atleta menor (ECA). Tem login: cadastra, agenda, cancela e
+    # acompanha pelo dependente (UC02, UC06, UC08, UC09, UC10, UC14). Nome e e-mail vêm do login.
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="responsavel")
     cpf = models.CharField(max_length=14, blank=True)
     telefone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
 
     class Meta:
         verbose_name = "responsável"
         verbose_name_plural = "responsáveis"
-        ordering = ["nome"]
+        ordering = ["usuario__first_name"]
+
+    @property
+    def nome(self):
+        return self.usuario.get_full_name() or self.usuario.username
+
+    @property
+    def email(self):
+        return self.usuario.email
 
     def __str__(self):
         return self.nome
@@ -132,6 +142,15 @@ class Atleta(models.Model):
     @property
     def menor_de_idade(self):
         return self.idade < 18
+    def clean(self):
+        # ECA: menor de 18 anos só com responsável. Fica na classe para valer em qualquer porta
+        # (cadastro, painel do admin, API), e não só no cadastros.py.
+        if self.data_nascimento and self.menor_de_idade and not self.responsavel_id:
+            raise ValidationError({"responsavel": "Atleta menor de idade exige um responsável."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # roda o clean() em toda gravação
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nome

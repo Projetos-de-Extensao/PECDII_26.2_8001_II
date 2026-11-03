@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 
 from agenda.views import AgendamentoViewSet
 from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
-from pessoas.views import AtletaViewSet, ProfissionalViewSet
+from pessoas.views import AtletaViewSet, ProfissionalViewSet, ResponsavelViewSet
 
 router = DefaultRouter()
 router.register("especialidades", EspecialidadeViewSet)
@@ -14,6 +14,7 @@ router.register("servicos", ServicoViewSet)
 router.register("equipamentos", EquipamentoViewSet)
 router.register("profissionais", ProfissionalViewSet)
 router.register("atletas", AtletaViewSet)
+router.register("responsaveis", ResponsavelViewSet)
 router.register("agendamentos", AgendamentoViewSet)
 
 urlpatterns = [

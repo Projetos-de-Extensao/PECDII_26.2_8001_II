@@ -41,7 +41,7 @@ class ProfissionalAdmin(admin.ModelAdmin):
 @admin.register(Responsavel)
 class ResponsavelAdmin(admin.ModelAdmin):
     list_display = ("nome", "cpf", "telefone", "email")
-    search_fields = ("nome", "cpf", "email")
+    search_fields = ("usuario__first_name", "usuario__last_name", "usuario__email", "cpf")
 
 
 @admin.register(Atleta)
@@ -53,6 +53,17 @@ class AtletaAdmin(admin.ModelAdmin):
 
 @admin.register(ConsentimentoLGPD)
 class ConsentimentoLGPDAdmin(admin.ModelAdmin):
+    # Só leitura: o consentimento é a prova do aceite (LGPD), não se cria, edita nem apaga pelo painel
     list_display = ("usuario", "versao_termos", "data")
     list_filter = ("versao_termos",)
     search_fields = ("usuario__username", "usuario__email")
+    readonly_fields = ("usuario", "versao_termos", "data")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

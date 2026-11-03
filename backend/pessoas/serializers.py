@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .cadastros import VERSAO_TERMOS_ATUAL, cadastrar_atleta
+from .cadastros import VERSAO_TERMOS_ATUAL, cadastrar_atleta,cadastrar_responsavel
 from .models import Atleta, Profissional, Responsavel
 
 
@@ -14,9 +14,23 @@ class ProfissionalSerializer(serializers.ModelSerializer):
 
 
 class ResponsavelSerializer(serializers.ModelSerializer):
+    # Cadastro do responsável (UC02): cria o login e registra o aceite da LGPD
+    nome = serializers.CharField(write_only=True)
+    sobrenome = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
+    nome_completo = serializers.CharField(source="nome", read_only=True)
+    email = serializers.EmailField()
+    senha = serializers.CharField(write_only=True)
+    aceitou_termos = serializers.BooleanField(write_only=True)
+
     class Meta:
         model = Responsavel
-        fields = ["id", "nome", "cpf", "telefone", "email"]
+        fields = ["id", "nome", "sobrenome", "nome_completo", "email", "senha", "cpf", "telefone", "aceitou_termos"]
+
+    def create(self, validated_data):
+        try:
+            return cadastrar_responsavel(**validated_data)
+        except DjangoValidationError as erro:
+            raise serializers.ValidationError(erro.message_dict if hasattr(erro, "message_dict") else erro.messages)
 
 
 class AtletaSerializer(serializers.ModelSerializer):
@@ -32,7 +46,6 @@ class AtletaSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    responsavel_dados = ResponsavelSerializer(write_only=True, required=False)
 
     class Meta:
         model = Atleta
@@ -47,14 +60,19 @@ class AtletaSerializer(serializers.ModelSerializer):
             "aceitou_termos",
             "versao_termos",
             "responsavel",
-            "responsavel_dados",
         ]
 
     def create(self, validated_data):
-        responsavel_obj = validated_data.pop("responsavel", None)
-        responsavel_dados = validated_data.pop("responsavel_dados", None)
-        responsavel = responsavel_obj or responsavel_dados
-
+        # Quem define o responsável depende de quem está cadastrando:
+        #   responsável logado  -> o dependente fica ligado a ele mesmo
+        #   equipe (recepção)   -> pode escolher o responsável pelo id
+        #   visitante           -> não escolhe responsável de ninguém (menor de idade é recusado)
+        usuario = self.context["request"].user
+        responsavel = validated_data.pop("responsavel", None)
+        if hasattr(usuario, "responsavel"):
+            responsavel = usuario.responsavel
+        elif not usuario.is_staff:
+            responsavel = None
         try:
             return cadastrar_atleta(responsavel=responsavel, **validated_data)
         except DjangoValidationError as erro:
