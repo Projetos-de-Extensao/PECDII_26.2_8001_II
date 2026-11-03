@@ -77,6 +77,16 @@ class Servico(models.Model):
     def __str__(self):
         return self.nome
 
+class Equipamento(models.Model):
+    nome = models.CharField(max_length=100, unique= True)
+    quantidade = models.PositiveBigIntegerField(
+        default=1, help_text="Quantas unidades o CT tem. Cada agendamento reserva uma unidade.")
+    ativo = models.BooleanField(default=True, help_text="Desmarque se quebrou ou saiu de uso: some das reservas novas.")
+    class Meta:
+        ordering = ["nome"]
+
+    def __str__(self):
+        return self.nome    
 
 class Configuracao(models.Model):
     # Uma linha só. Use Configuracao.atual() para ler.

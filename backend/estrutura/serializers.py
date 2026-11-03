@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Espaco, Especialidade, Servico
+from .models import Espaco, Especialidade, Servico, Equipamento
 
 
 class EspecialidadeSerializer(serializers.ModelSerializer):
@@ -21,3 +21,7 @@ class ServicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servico
         fields = ["id", "nome", "especialidade", "duracao_minutos", "vagas", "em_grupo", "espacos", "ativo"]
+class EquipamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Equipamento
+        fields = ["id", "nome", "quantidade", "ativo"]  

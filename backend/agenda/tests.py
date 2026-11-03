@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from estrutura.models import Espaco, Especialidade, Servico
+from estrutura.models import Espaco, Especialidade, Servico,Equipamento
 from pkzlab.testes_comuns import hora, profissional
 
 from .models import Agendamento
@@ -121,3 +121,65 @@ class ApiDeAgendamento(Base):
         self.agendar(hora(2, 11))
         r = self.api.get("/api/agendamentos/?status=AGENDADO")
         self.assertEqual(r.data["count"], 1)
+class ReservaDeEquipamentos(Base):
+    def setUp(self):
+        super().setUp()
+        from estrutura.models import Equipamento
+        self.bioimpedancia = Equipamento.objects.create(nome="Bioimpedância", quantidade=1)
+        self.esteiras = Equipamento.objects.create(nome="Esteira", quantidade=2)
+        self.consultorio2 = Espaco.objects.create(nome="Consultório 2")
+        self.consultorio2.especialidades.add(self.nutri)
+        self.bia = profissional("bia", "Bia", "M003", self.nutri)
+
+    def test_reserva_o_equipamento(self):
+        a = self.agendar()
+        a.reservar_equipamentos([self.bioimpedancia])
+        self.assertEqual(list(a.equipamentos.all()), [self.bioimpedancia])
+
+    def test_unidade_unica_ja_reservada_no_mesmo_horario(self):
+        self.agendar().reservar_equipamentos([self.bioimpedancia])
+        outro = self.agendar(profissional=self.bia, espaco=self.consultorio2)  # mesmo horário, outra sala
+        with self.assertRaises(ValidationError) as erro:
+            outro.reservar_equipamentos([self.bioimpedancia])
+        self.assertIn("equipamentos", erro.exception.message_dict)
+
+    def test_duas_unidades_cabem_duas_reservas(self):
+        self.agendar().reservar_equipamentos([self.esteiras])
+        self.agendar(profissional=self.bia, espaco=self.consultorio2).reservar_equipamentos([self.esteiras])
+
+    def test_outro_horario_pode(self):
+        self.agendar().reservar_equipamentos([self.bioimpedancia])
+        self.agendar(hora(2, 10)).reservar_equipamentos([self.bioimpedancia])
+
+    def test_cancelado_libera_o_equipamento(self):
+        a = self.agendar()
+        a.reservar_equipamentos([self.bioimpedancia])
+        a.cancelar("Atleta doente")
+        self.agendar(profissional=self.bia, espaco=self.consultorio2).reservar_equipamentos([self.bioimpedancia])
+
+    def test_fora_de_uso_nao_reserva(self):
+        self.bioimpedancia.ativo = False
+        self.bioimpedancia.save()
+        with self.assertRaises(ValidationError):
+            self.agendar().reservar_equipamentos([self.bioimpedancia])
+
+    def test_reagendar_leva_os_equipamentos(self):
+        a = self.agendar()
+        a.reservar_equipamentos([self.bioimpedancia])
+        novo = a.reagendar(hora(3, 9))
+        self.assertEqual(list(novo.equipamentos.all()), [self.bioimpedancia])
+
+    def test_pela_api(self):
+        from rest_framework.test import APIClient
+        api = APIClient()
+        api.force_authenticate(self.nutricionista.funcionario.usuario)
+        dados = {"servico": self.consulta.pk, "profissional": self.nutricionista.pk, "espaco": self.consultorio.pk,
+                 "inicio": hora(2, 9).isoformat(), "equipamentos": [self.bioimpedancia.pk]}
+        r = api.post("/api/agendamentos/", dados, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["equipamentos"], [self.bioimpedancia.pk])
+        dados.update(profissional=self.bia.pk, espaco=self.consultorio2.pk)
+        r = api.post("/api/agendamentos/", dados, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("equipamentos", r.data)
+        self.assertEqual(Agendamento.objects.count(), 1)  # o segundo não ficou gravado pela metade    

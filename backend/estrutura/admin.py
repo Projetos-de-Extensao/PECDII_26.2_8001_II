@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Configuracao, Espaco, Especialidade, Servico
+from .models import Configuracao, Espaco, Especialidade, Servico, Equipamento
 
 
 @admin.register(Especialidade)
@@ -25,6 +25,12 @@ class ServicoAdmin(admin.ModelAdmin):
     list_display = ("nome", "especialidade", "duracao_minutos", "vagas", "ativo")
     list_filter = ("especialidade", "ativo")
     filter_horizontal = ("espacos",)
+
+@admin.register(Equipamento)
+class EquipamentoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "quantidade", "ativo")   
+    list_filter = ("ativo",)                          
+    search_fields = ("nome",)                            
 
 
 @admin.register(Configuracao)

@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from pkzlab.testes_comuns import hora
 
-from .models import Configuracao, Espaco, Especialidade, Servico
+from .models import Configuracao, Espaco, Especialidade, Servico,Equipamento
 
 
 class SalasPorEspecialidade(TestCase):
@@ -81,3 +81,28 @@ class Documentacao(TestCase):
     def test_swagger_e_schema_abrem_sem_login(self):
         self.assertEqual(self.client.get("/api/docs/").status_code, 200)
         self.assertEqual(self.client.get("/api/schema/").status_code, 200)
+class ApiDeEquipamentos(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from rest_framework.test import APIClient
+        self.api = APIClient()
+        self.comum = User.objects.create_user("comum")
+        self.admin = User.objects.create_user("chefe", is_staff=True)
+
+    def test_admin_cadastra_equipamento(self):
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/equipamentos/", {"nome": "Esteira", "quantidade": 3})
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["quantidade"], 3)
+
+    def test_logado_consulta_mas_nao_cadastra(self):
+        Equipamento.objects.create(nome="Esteira")
+        self.api.force_authenticate(self.comum)
+        self.assertEqual(self.api.get("/api/equipamentos/").data["count"], 1)
+        self.assertEqual(self.api.post("/api/equipamentos/", {"nome": "Bike"}).status_code, 403)
+
+    def test_nome_nao_repete(self):
+        Equipamento.objects.create(nome="Esteira")
+        self.api.force_authenticate(self.admin)
+        self.assertEqual(self.api.post("/api/equipamentos/", {"nome": "Esteira"}).status_code, 400)        
+        

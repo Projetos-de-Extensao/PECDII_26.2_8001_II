@@ -4,13 +4,14 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from rest_framework.routers import DefaultRouter
 
 from agenda.views import AgendamentoViewSet
-from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet
+from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
 from pessoas.views import AtletaViewSet, ProfissionalViewSet
 
 router = DefaultRouter()
 router.register("especialidades", EspecialidadeViewSet)
 router.register("espacos", EspacoViewSet)
 router.register("servicos", ServicoViewSet)
+router.register("equipamentos", EquipamentoViewSet)
 router.register("profissionais", ProfissionalViewSet)
 router.register("atletas", AtletaViewSet)
 router.register("agendamentos", AgendamentoViewSet)

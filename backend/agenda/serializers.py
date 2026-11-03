@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import Agendamento
@@ -13,15 +14,26 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
         fields = ["id", "protocolo", "servico", "profissional", "espaco", "inicio", "fim", "status",
-                  "justificativa", "substitui", "criado_em"]
+                  "justificativa", "substitui", "criado_em", "equipamentos"]
         read_only_fields = ["status", "justificativa", "substitui"]
 
     def validate(self, attrs):
+        dados = {campo: valor for campo, valor in attrs.items() if campo != "equipamentos"}  # lista não entra no construtor
         try:
-            Agendamento(**attrs).clean()
+            Agendamento(**dados).clean()
         except DjangoValidationError as e:
             raise erro_da_api(e)
         return attrs
+    @transaction.atomic
+    def create(self, validated_data):
+        # cria o agendamento e reserva os equipamentos; se a reserva falhar, nada fica gravado
+        equipamentos = validated_data.pop("equipamentos", [])
+        agendamento = Agendamento.objects.create(**validated_data)
+        try:
+            agendamento.reservar_equipamentos(equipamentos)
+        except DjangoValidationError as e:
+            raise erro_da_api(e)
+        return agendamento
 
 
 class CancelarSerializer(serializers.Serializer):

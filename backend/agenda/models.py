@@ -11,7 +11,7 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from estrutura.models import Espaco, Servico
+from estrutura.models import Espaco, Servico,Equipamento
 from pessoas.models import Profissional
 
 
@@ -36,6 +36,8 @@ class Agendamento(models.Model):
     substitui = models.OneToOneField(
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="substituido_por",
         help_text="O agendamento anterior, quando este veio de um reagendamento.")
+    equipamentos = models.ManyToManyField(Equipamento, blank=True, related_name="agendamentos",
+                                          help_text="Equipamentos reservados para este atendimento.")
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -53,6 +55,21 @@ class Agendamento(models.Model):
     def save(self, *args, **kwargs):
         self.fim = self.inicio + self.servico.duracao
         super().save(*args, **kwargs)
+    def reservar_equipamentos(self, equipamentos):
+        erros = []
+        for equipamento in equipamentos:
+            if not equipamento.ativo:
+                erros.append(f"{equipamento} está fora de uso.")
+                continue
+            em_uso = (Agendamento.objects
+                      .filter(equipamentos=equipamento, status=self.Status.AGENDADO,
+                              inicio__lt=self.fim, fim__gt=self.inicio)
+                      .exclude(pk=self.pk).count())
+            if em_uso >= equipamento.quantidade:
+                erros.append(f"Todas as unidades de {equipamento} já estão reservadas nesse horário.")
+        if erros:
+            raise ValidationError({"equipamentos": erros})
+        self.equipamentos.set(equipamentos)         
 
     def cancelar(self, justificativa):
         if self.status != self.Status.AGENDADO:
@@ -70,8 +87,10 @@ class Agendamento(models.Model):
             raise ValidationError("Só dá para reagendar um agendamento com status Agendado.")
         self.status = self.Status.SUBSTITUIDO
         self.save(update_fields=["status"])
-        return Agendamento.objects.create(servico=self.servico, profissional=self.profissional,
+        novo = Agendamento.objects.create(servico=self.servico, profissional=self.profissional,
                                           espaco=self.espaco, inicio=novo_inicio, substitui=self)
+        novo.reservar_equipamentos(self.equipamentos.all())  # leva os mesmos equipamentos para o novo horário
+        return novo
 
     def __str__(self):
         return f"{self.protocolo} - {self.servico} com {self.profissional} em {self.inicio:%d/%m %H:%M}"

@@ -3,8 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 
 from pkzlab.permissoes import SoAdminAltera
 
-from .models import Espaco, Especialidade, Servico
-from .serializers import EspacoSerializer, EspecialidadeSerializer, ServicoSerializer
+from .models import Espaco, Especialidade, Servico,Equipamento
+from .serializers import EspacoSerializer, EspecialidadeSerializer, ServicoSerializer, EquipamentoSerializer
 
 
 class EspecialidadeViewSet(viewsets.ModelViewSet):
@@ -23,4 +23,9 @@ class ServicoViewSet(viewsets.ModelViewSet):
     # UC18: o admin cadastra as modalidades; os demais só consultam
     queryset = Servico.objects.select_related("especialidade").prefetch_related("espacos")
     serializer_class = ServicoSerializer
+    permission_classes = [IsAuthenticated, SoAdminAltera]
+class EquipamentoViewSet(viewsets.ModelViewSet):
+    
+    queryset = Equipamento.objects.all()
+    serializer_class = EquipamentoSerializer
     permission_classes = [IsAuthenticated, SoAdminAltera]
