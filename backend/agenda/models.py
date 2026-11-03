@@ -1,13 +1,6 @@
-"""Agenda do CT: o dia a dia.
 
-Agendamento  um horário marcado de um serviço, com um profissional, numa sala.
-             O fim vem da duração do serviço. Nunca é apagado: cancelar e reagendar só mudam o status,
-             e o reagendamento aponta para o agendamento que ele substitui (UC08).
-
-Ainda faltam, quando existirem as classes: atletas, aula (grade) e equipamentos.
-"""
 import uuid
-
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
@@ -79,6 +72,8 @@ class Agendamento(models.Model):
         self.status = self.Status.CANCELADO
         self.justificativa = justificativa
         self.save(update_fields=["status", "justificativa"])
+        Aviso.avisar(self.profissional.funcionario.usuario,
+                     f"Atendimento {self.protocolo} de {self.inicio:%d/%m às %H:%M} foi cancelado: {justificativa}")
 
     @transaction.atomic
     def reagendar(self, novo_inicio):
@@ -94,3 +89,26 @@ class Agendamento(models.Model):
 
     def __str__(self):
         return f"{self.protocolo} - {self.servico} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
+class Aviso(models.Model):
+    
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="avisos")
+    texto = models.CharField(max_length=300)
+    link = models.CharField(max_length=200, blank=True, help_text="Para onde o aviso leva (opcional).")
+    lido = models.BooleanField(default=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]  # o mais novo primeiro
+
+    @classmethod
+    def avisar(cls, usuario, texto, link=""):
+       
+        return cls.objects.create(usuario=usuario, texto=texto[:300], link=link)
+
+    def marcar_como_lido(self):
+        if not self.lido:
+            self.lido = True
+            self.save(update_fields=["lido"])
+
+    def __str__(self):
+        return self.texto

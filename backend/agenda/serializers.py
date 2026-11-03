@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Agendamento
+from .models import Agendamento,Aviso
 
 
 def erro_da_api(erro):
@@ -42,3 +42,10 @@ class CancelarSerializer(serializers.Serializer):
 
 class ReagendarSerializer(serializers.Serializer):
     inicio = serializers.DateTimeField()
+
+
+class AvisoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Aviso
+        fields = ["id", "texto", "link", "lido", "criado_em"]
+        read_only_fields = fields  # pela API, aviso só se lê; quem cria é o sistema

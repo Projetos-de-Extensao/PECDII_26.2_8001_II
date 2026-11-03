@@ -4,8 +4,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Agendamento
-from .serializers import AgendamentoSerializer, CancelarSerializer, ReagendarSerializer, erro_da_api
+from .models import Agendamento,Aviso
+from .serializers import AgendamentoSerializer, CancelarSerializer, ReagendarSerializer, erro_da_api,AvisoSerializer
 
 
 @extend_schema(parameters=[OpenApiParameter("status", str, enum=Agendamento.Status.values)])
@@ -45,3 +45,22 @@ class AgendamentoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         except DjangoValidationError as e:
             raise erro_da_api(e)
         return Response(AgendamentoSerializer(novo).data, status=status.HTTP_201_CREATED)
+@extend_schema(parameters=[OpenApiParameter("lido", bool, description="false: só os que ainda não foram lidos.")])
+class AvisoViewSet(viewsets.ReadOnlyModelViewSet):
+    # UC20: cada pessoa vê só os próprios avisos e marca como lido
+    queryset = Aviso.objects.all()
+    serializer_class = AvisoSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset().filter(usuario=self.request.user)
+        lido = self.request.query_params.get("lido")
+        if lido in ("true", "false"):
+            qs = qs.filter(lido=(lido == "true"))
+        return qs
+
+    @extend_schema(request=None, responses=AvisoSerializer, summary="Marca o aviso como lido")
+    @action(detail=True, methods=["post"])
+    def lido(self, request, pk=None):
+        aviso = self.get_object()
+        aviso.marcar_como_lido()
+        return Response(AvisoSerializer(aviso).data)

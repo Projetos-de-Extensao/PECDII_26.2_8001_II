@@ -6,7 +6,7 @@ from django.test import TestCase
 from estrutura.models import Espaco, Especialidade, Servico,Equipamento
 from pkzlab.testes_comuns import hora, profissional
 
-from .models import Agendamento
+from .models import Agendamento,Aviso
 
 
 class Base(TestCase):
@@ -182,4 +182,51 @@ class ReservaDeEquipamentos(Base):
         r = api.post("/api/agendamentos/", dados, format="json")
         self.assertEqual(r.status_code, 400)
         self.assertIn("equipamentos", r.data)
-        self.assertEqual(Agendamento.objects.count(), 1)  # o segundo não ficou gravado pela metade    
+        self.assertEqual(Agendamento.objects.count(), 1) 
+class Avisos(Base):
+    def setUp(self):
+        super().setUp()
+        from rest_framework.test import APIClient
+        self.api = APIClient()
+        self.nina = self.nutricionista.funcionario.usuario
+        self.teo = self.treinador.funcionario.usuario
+
+    def test_cancelar_avisa_o_profissional(self):
+        a = self.agendar()
+        a.cancelar("Atleta doente")
+        aviso = Aviso.objects.get(usuario=self.nina)
+        self.assertIn(a.protocolo, aviso.texto)
+        self.assertIn("Atleta doente", aviso.texto)
+        self.assertFalse(aviso.lido)
+
+    def test_cada_um_ve_so_os_seus(self):
+        Aviso.avisar(self.nina, "Para a Nina")
+        Aviso.avisar(self.teo, "Para o Teo")
+        self.api.force_authenticate(self.nina)
+        textos = [a["texto"] for a in self.api.get("/api/avisos/").data["results"]]
+        self.assertEqual(textos, ["Para a Nina"])
+
+    def test_marca_como_lido_e_filtra(self):
+        aviso = Aviso.avisar(self.nina, "Teste")
+        self.api.force_authenticate(self.nina)
+        self.assertEqual(self.api.get("/api/avisos/?lido=false").data["count"], 1)
+        r = self.api.post(f"/api/avisos/{aviso.pk}/lido/")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data["lido"])
+        self.assertEqual(self.api.get("/api/avisos/?lido=false").data["count"], 0)
+
+    def test_nao_mexe_no_aviso_de_outro(self):
+        aviso = Aviso.avisar(self.teo, "Para o Teo")
+        self.api.force_authenticate(self.nina)
+        self.assertEqual(self.api.post(f"/api/avisos/{aviso.pk}/lido/").status_code, 404)
+        aviso.refresh_from_db()
+        self.assertFalse(aviso.lido)
+
+    def test_api_nao_cria_nem_apaga_aviso(self):
+        aviso = Aviso.avisar(self.nina, "Teste")
+        self.api.force_authenticate(self.nina)
+        self.assertEqual(self.api.post("/api/avisos/", {"texto": "falso"}).status_code, 405)
+        self.assertEqual(self.api.delete(f"/api/avisos/{aviso.pk}/").status_code, 405)
+
+    def test_sem_login_nada(self):
+        self.assertEqual(self.api.get("/api/avisos/").status_code, 403)             # o segundo não ficou gravado pela metade    
