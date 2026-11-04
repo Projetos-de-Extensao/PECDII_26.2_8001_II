@@ -1,0 +1,76 @@
+@startuml seq_02_disponibilidade_agendamento
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Disponibilidade e Agendamento (UC05, UC06, UC07)
+
+actor "Profissional" as Prof
+actor "Atleta / Recepcao" as Cliente
+boundary "Interface de Agenda\n(/api/agendamentos/)" as Boundary
+control "Controlador de Agenda\n(agenda.services)" as Control
+entity "Disponibilidade /\nBloqueio" as DispEntity
+entity "Profissional / Servico /\nEspaco" as EstruturaEntity
+entity "Agendamento" as AgEntity
+
+== UC05 - Gerenciar Disponibilidade ==
+Prof -> Boundary : Definir grade de horarios ou registrar bloqueio
+activate Boundary
+Boundary -> Control : salvarDisponibilidade(profissional, dia_semana, inicio, fim)
+activate Control
+Control -> AgEntity : verificarAgendamentosAfetados(profissional, intervalo)
+alt Existem agendamentos conflitantes com novo bloqueio (A1)
+AgEntity --> Control : lista de agendamentos ativos
+Control --> Boundary : Alerta de conflito com atendimentos marcados
+Boundary --> Prof : Solicitar confirmacao ou reagendamento previo
+else Sem conflitos
+AgEntity --> Control : vazio
+Control -> DispEntity : gravarHorarios(profissional, inicio, fim)
+DispEntity --> Control : disponibilidade salva
+Control --> Boundary : 200 OK
+Boundary --> Prof : Exibir grade atualizada
+end
+deactivate Control
+deactivate Boundary
+
+== UC07 - Verificar Disponibilidade ==
+Cliente -> Boundary : Selecionar servico, profissional, espaco e data
+activate Boundary
+Boundary -> Control : consultarHorariosDisponiveis(servico, profissional, espaco, data)
+activate Control
+Control -> EstruturaEntity : validarProfissionalAtivoEEspecialidade(profissional, servico)
+EstruturaEntity --> Control : valido (UC06 A4)
+Control -> DispEntity : obterTurnosProfissionalEEspaco(profissional, espaco, data)
+DispEntity --> Control : turnos base
+Control -> AgEntity : listarOcupacoesNoDia(profissional, espaco, data)
+AgEntity --> Control : horarios ja ocupados / capacidade atual
+Control --> Boundary : Lista de slots disponiveis
+deactivate Control
+Boundary --> Cliente : Exibir horarios livres
+deactivate Boundary
+
+== UC06 - Criar Agendamento (Com Fluxos Alternativos e Conflitos) ==
+Cliente -> Boundary : POST /api/agendamentos/ (atleta, servico, profissional, espaco, inicio, fim)
+activate Boundary
+Boundary -> Control : criarAgendamento(dados)
+activate Control
+Control -> EstruturaEntity : verificarRegras(profissional.ativo, atende(especialidade), espaco.ativo)
+alt Profissional inativo ou nao atende a especialidade (UC06 A4)
+EstruturaEntity --> Control : Invalido
+Control --> Boundary : ValidationError("Profissional nao habilitado para este servico")
+Boundary --> Cliente : 400 Bad Request
+else Choque de horario do Profissional, Atleta ou Capacidade do Espaco excedida
+Control -> AgEntity : verificarConflitos(profissional, atleta, espaco, inicio, fim)
+AgEntity --> Control : Conflito detectado
+Control --> Boundary : ValidationError("Conflito de horario ou capacidade do espaco esgotada")
+Boundary --> Cliente : 400 Bad Request (Sugerir Lista de Espera - UC19)
+else Horario livre e regras atendidas
+Control -> AgEntity : Agendamento.objects.create(status="CONFIRMADO", ...)
+activate AgEntity
+AgEntity --> Control : agendamento
+deactivate AgEntity
+Control --> Boundary : 201 Created (dados do agendamento)
+Boundary --> Cliente : Exibir confirmacao do agendamento
+end
+deactivate Control
+deactivate Boundary
+@enduml

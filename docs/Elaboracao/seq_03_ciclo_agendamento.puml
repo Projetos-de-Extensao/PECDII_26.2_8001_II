@@ -1,0 +1,71 @@
+@startuml seq_03_ciclo_agendamento
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Ciclo do Agendamento (UC08, UC09, UC10)
+
+actor "Atleta / Recepcao /\nProfissional" as Ator
+boundary "Interface de Agenda\n(/api/agendamentos/)" as Boundary
+control "Controlador de Agenda" as Control
+entity "Agendamento" as AgEntity
+control "Controlador Lista de Espera\n(UC19 / UC20)" as WaitControl
+
+== UC10 - Consultar Agenda ==
+Ator -> Boundary : GET /api/agendamentos/?inicio=...&fim=...&profissional=...
+activate Boundary
+Boundary -> Control : listarAgendamentos(filtros, usuario_logado)
+activate Control
+Control -> AgEntity : filtrarPorPermissaoEPeriodo(filtros, usuario_logado)
+activate AgEntity
+AgEntity --> Control : lista de agendamentos
+deactivate AgEntity
+Control --> Boundary : Agendamentos serializados
+deactivate Control
+Boundary --> Ator : Exibir calendario de atendimentos
+deactivate Boundary
+
+== UC08 - Reagendar Atendimento ==
+Ator -> Boundary : Solicitar mudanca de data/horario (agendamento_id, novo_inicio, novo_fim)
+activate Boundary
+Boundary -> Control : reagendar(agendamento_id, novo_inicio, novo_fim)
+activate Control
+Control -> AgEntity : buscarAgendamento(agendamento_id)
+AgEntity --> Control : agendamento atual
+alt Fora do prazo minimo de antecedencia ou status finalizado (A1)
+Control --> Boundary : ValidationError("Reagendamento nao permitido fora do prazo")
+Boundary --> Ator : Informar restricao de prazo (400)
+else Novo horario possui conflito de agenda (A2)
+Control -> AgEntity : verificarConflitos(novo_inicio, novo_fim)
+AgEntity --> Control : Conflito
+Control --> Boundary : ValidationError("Novo horario indisponivel")
+Boundary --> Ator : Solicitar escolha de outro horario (400)
+else Novo horario valido
+Control -> AgEntity : atualizarHorario(novo_inicio, novo_fim)
+AgEntity --> Control : agendamento atualizado
+Control -> WaitControl : notificarVagaLiberadaHorarioAnterior()
+Control --> Boundary : 200 OK
+Boundary --> Ator : Confirmar reagendamento
+end
+deactivate Control
+deactivate Boundary
+
+== UC09 - Cancelar Agendamento ==
+Ator -> Boundary : Solicitar cancelamento (agendamento_id, motivo)
+activate Boundary
+Boundary -> Control : cancelarAgendamento(agendamento_id, motivo)
+activate Control
+Control -> AgEntity : buscarAgendamento(agendamento_id)
+AgEntity --> Control : agendamento
+alt Agendamento ja realizado ou ja cancelado (A1)
+Control --> Boundary : ValidationError("Nao e possivel cancelar este agendamento")
+Boundary --> Ator : Exibir erro (400)
+else Cancelamento valido
+Control -> AgEntity : definirStatus("CANCELADO", motivo)
+AgEntity --> Control : status atualizado
+Control -> WaitControl : dispararAvisoVagaListaEspera(servico, profissional, horario)
+Control --> Boundary : 200 OK
+Boundary --> Ator : Confirmar cancelamento
+end
+deactivate Control
+deactivate Boundary
+@enduml

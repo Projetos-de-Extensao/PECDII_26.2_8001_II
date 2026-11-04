@@ -1,0 +1,79 @@
+@startuml seq_06_administracao
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Administracao do CT (UC16, UC17, UC18, UC21)
+
+actor "Administrador" as Admin
+boundary "Painel Administrativo\n(/admin/ e /api/)" as Boundary
+control "Controlador de Estrutura\ne Permissoes" as Control
+entity "Funcionario / Papel /\nauth.User" as UserEntity
+entity "Espaco" as EspacoEntity
+entity "Servico / Especialidade" as ServicoEntity
+entity "GradeAula" as GradeEntity
+
+== UC16 - Gerenciar Usuarios e Permissoes ==
+Admin -> Boundary : Alterar papeis (Profissional, Recepcao, Admin) ou inativar conta
+activate Boundary
+Boundary -> Control : atualizarPermissoesUsuario(funcionario_id, papeis_ativos, conta_ativa)
+activate Control
+Control -> UserEntity : atualizarStatusConta(usuario, is_active=conta_ativa)
+Control -> UserEntity : atualizarPapeis(funcionario, papeis_ativos)
+UserEntity --> Control : permissoes atualizadas (mantendo historico - UC04 A2/A4)
+Control --> Boundary : 200 OK
+deactivate Control
+Boundary --> Admin : Confirmar atualizacao de acesso
+deactivate Boundary
+
+== UC17 - Gerenciar Espacos e Equipamentos ==
+Admin -> Boundary : Cadastrar ou editar Espaco (nome, capacidade, recursos, ativo)
+activate Boundary
+Boundary -> Control : salvarEspaco(dados_espaco)
+activate Control
+Control -> EspacoEntity : verificarNomeUnicoECapacidade(nome, capacidade)
+alt Nome duplicado ou capacidade <= 0 (A1)
+EspacoEntity --> Control : Invalido
+Control --> Boundary : ValidationError("Dados de espaco invalidos ou nome duplicado")
+Boundary --> Admin : Exibir erro (400)
+else Dados validos
+Control -> EspacoEntity : update_or_create(nome, capacidade, ativo)
+EspacoEntity --> Control : espaco salvo
+Control --> Boundary : 201/200 OK
+Boundary --> Admin : Confirmar espaco configurado
+end
+deactivate Control
+deactivate Boundary
+
+== UC18 - Gerenciar Servicos ==
+Admin -> Boundary : Configurar Servico (nome, especialidade, duracao_padrao, espacos_permitidos)
+activate Boundary
+Boundary -> Control : salvarServico(dados_servico)
+activate Control
+Control -> ServicoEntity : validarEspecialidadeEDuracao(especialidade, duracao)
+Control -> ServicoEntity : update_or_create(dados_servico)
+ServicoEntity --> Control : servico atualizado e vinculado aos espacos
+Control --> Boundary : 201/200 OK
+deactivate Control
+Boundary --> Admin : Confirmar servico cadastrado
+deactivate Boundary
+
+== UC21 - Montar Grade de Aulas ==
+Admin -> Boundary : Definir turma/aula recorrente (servico, profissional, espaco, dias, horario, vagas)
+activate Boundary
+Boundary -> Control : criarGradeAula(servico, profissional, espaco, recorrencia, vagas)
+activate Control
+Control -> EspacoEntity : validarCapacidadeMaxima(espaco, vagas)
+Control -> GradeEntity : verificarConflitoDeGrade(profissional, espaco, recorrencia)
+alt Conflito de espaco/profissional ou vagas > capacidade do espaco (A1)
+GradeEntity --> Control : Conflito detectado
+Control --> Boundary : ValidationError("Conflito na alocacao da grade ou excesso de vagas")
+Boundary --> Admin : Exibir conflito (400)
+else Alocacao valida
+Control -> GradeEntity : criarHorariosGrade(servico, profissional, espaco, recorrencia, vagas)
+GradeEntity --> Control : grade publicada
+Control --> Boundary : 201 Created
+Boundary --> Admin : Exibir grade de aulas publicada
+end
+deactivate Control
+deactivate Boundary
+@enduml
