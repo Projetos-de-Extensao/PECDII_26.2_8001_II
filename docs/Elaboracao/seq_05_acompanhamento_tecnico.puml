@@ -1,0 +1,90 @@
+@startuml seq_05_acompanhamento_tecnico
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Acompanhamento Tecnico (UC11 a UC15)
+
+actor "Profissional" as Prof
+actor "Atleta" as Atleta
+boundary "Painel Tecnico / Prontuario\ne Evolucao" as Boundary
+control "Controlador de Desempenho\ne Prontuario" as Control
+entity "Agendamento /\nAtendimento" as AtendEntity
+entity "AvaliacaoFisica" as AvalEntity
+entity "PlanoTreino" as TreinoEntity
+entity "RelatorioEvolucao" as RelEntity
+
+== UC11 - Registrar Atendimento ==
+Prof -> Boundary : Selecionar agendamento e registrar observacoes/presenca
+activate Boundary
+Boundary -> Control : registrarAtendimento(agendamento_id, compareceu, observacoes)
+activate Control
+Control -> AtendEntity : validarPermissaoProfissional(profissional, agendamento_id)
+alt Profissional responsavel e agendamento valido
+Control -> AtendEntity : salvarRegistro(status="REALIZADO", observacoes)
+AtendEntity --> Control : atendimento registrado
+Control --> Boundary : 200 OK
+Boundary --> Prof : Confirmar registro do atendimento
+else Agendamento cancelado ou de outro profissional (A1)
+Control --> Boundary : ValidationError("Acesso negado ou agendamento invalido")
+Boundary --> Prof : Exibir erro (400/403)
+end
+deactivate Control
+deactivate Boundary
+
+== UC12 - Registrar Avaliacao Fisica ==
+Prof -> Boundary : Inserir metricas corporais e testes fisicos (atleta_id, data, indicadores)
+activate Boundary
+Boundary -> Control : registrarAvaliacaoFisica(profissional, atleta_id, dados_antropometricos)
+activate Control
+Control -> AvalEntity : create(atleta, profissional, data, medidas, composicao)
+activate AvalEntity
+AvalEntity --> Control : avaliacao salva
+deactivate AvalEntity
+Control --> Boundary : 201 Created
+deactivate Control
+Boundary --> Prof : Exibir resumo da avaliacao fisica
+deactivate Boundary
+
+== UC13 - Prescrever Plano de Treino ==
+Prof -> Boundary : Definir exercicios, series, cargas e validade (atleta_id, itens_treino)
+activate Boundary
+Boundary -> Control : prescreverPlanoTreino(profissional, atleta_id, vigencia, exercicios)
+activate Control
+Control -> TreinoEntity : inativarPlanosAnterioresSeNecessario(atleta_id)
+Control -> TreinoEntity : create(atleta, profissional, vigencia, exercicios)
+activate TreinoEntity
+TreinoEntity --> Control : plano_treino
+deactivate TreinoEntity
+Control --> Boundary : 201 Created
+deactivate Control
+Boundary --> Prof : Confirmar prescricao disponivel para o atleta
+deactivate Boundary
+
+== UC14 - Acompanhar Evolucao ==
+Atleta -> Boundary : Solicitar historico de evolucao e treinos
+activate Boundary
+Boundary -> Control : obterHistoricoEvolucao(atleta_id, periodo)
+activate Control
+Control -> AvalEntity : listarAvaliacoesPorPeriodo(atleta_id, periodo)
+AvalEntity --> Control : serie temporal de avaliacoes
+Control -> AtendEntity : calcularFrequenciaAtendimentos(atleta_id, periodo)
+AtendEntity --> Control : indicadores de assiduidade
+Control --> Boundary : Dados consolidados de evolucao
+deactivate Control
+Boundary --> Atleta : Renderizar graficos e evolucao tecnica
+deactivate Boundary
+
+== UC15 - Gerar Relatorios ==
+Prof -> Boundary : Solicitar exportacao de relatorio (atleta/periodo/modalidade)
+activate Boundary
+Boundary -> Control : gerarRelatorioTecnico(filtros, formato)
+activate Control
+Control -> AvalEntity : agregarMetricas(filtros)
+Control -> AtendEntity : agregarAtendimentos(filtros)
+Control -> RelEntity : compilarDocumento(dados_agregados, formato)
+RelEntity --> Control : arquivo / payload do relatorio
+Control --> Boundary : 200 OK (Relatorio gerado)
+deactivate Control
+Boundary --> Prof : Disponibilizar visualizacao/download
+deactivate Boundary
+@enduml
