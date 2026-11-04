@@ -1,0 +1,112 @@
+@startuml seq_01_autenticacao_cadastro
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Autenticacao e Cadastro (UC01 a UC04)
+
+actor "Usuario / Visitante" as User
+actor "Administrador" as Admin
+boundary "Tela de Acesso / Cadastro\n(Frontend / API View)" as Boundary
+control "Controlador de Autenticacao\ne Cadastros (pessoas.cadastros)" as Control
+entity "auth.User /\nFuncionario / Atleta" as Entity
+entity "Responsavel /\nConsentimentoLGPD" as LGPD
+participant "Servico de E-mail" as Mail
+
+== UC01 - Autenticar-se ==
+User -> Boundary : Informar e-mail (login) e senha
+activate Boundary
+Boundary -> Control : autenticar(username=email, password=senha)
+activate Control
+Control -> Entity : verificarCredenciais(email, senha)
+activate Entity
+Entity --> Control : usuario (is_active)
+deactivate Entity
+alt Credenciais validas e conta ativa
+Control --> Boundary : Sessao / Token de acesso
+Boundary --> User : Redirecionar para painel do perfil
+else Credenciais invalidas ou conta inativa (A1)
+Control --> Boundary : Erro de autenticacao (401/403)
+Boundary --> User : Exibir mensagem de erro
+end
+deactivate Control
+deactivate Boundary
+
+== UC02 - Cadastrar-se (Atleta e Consentimento LGPD) ==
+User -> Boundary : Preencher dados, data_nascimento,\naceitou_termos e dados do responsavel (se menor)
+activate Boundary
+Boundary -> Control : cadastrar_atleta(email, nome, senha,\ndata_nascimento, aceitou_termos, responsavel)
+activate Control
+alt Nao aceitou termos LGPD
+Control --> Boundary : ValidationError("Obrigatorio aceitar os termos LGPD")
+Boundary --> User : Exibir exigencia de aceite (400)
+else E-mail ja cadastrado
+Control -> Entity : filter(username__iexact=email).exists()
+Entity --> Control : True
+Control --> Boundary : ValidationError("E-mail ja cadastrado")
+Boundary --> User : Informar e-mail duplicado (400)
+else Menor de 18 anos sem responsavel
+Control --> Boundary : ValidationError("Atleta menor de idade exige responsavel")
+Boundary --> User : Solicitar dados do responsavel (400)
+else Dados validos (Transacao Atomica)
+opt Atleta menor de idade (novo responsavel)
+Control -> LGPD : Responsavel.objects.create(...)
+activate LGPD
+LGPD --> Control : responsavel
+deactivate LGPD
+end
+Control -> Entity : User.objects.create_user(username=email, ...)
+activate Entity
+Entity --> Control : usuario
+deactivate Entity
+Control -> LGPD : ConsentimentoLGPD.objects.create(usuario, versao_termos)
+activate LGPD
+LGPD --> Control : consentimento
+deactivate LGPD
+Control -> Entity : Atleta.objects.create(usuario, data_nascimento, responsavel)
+activate Entity
+Entity --> Control : atleta
+deactivate Entity
+Control --> Boundary : Atleta criado (201 Created)
+Boundary --> User : Confirmar cadastro realizado
+end
+deactivate Control
+deactivate Boundary
+
+== UC03 - Recuperar Senha ==
+User -> Boundary : Solicitar recuperacao de senha (e-mail)
+activate Boundary
+Boundary -> Control : solicitarRedefinicaoSenha(email)
+activate Control
+Control -> Entity : buscarPorEmail(email)
+Entity --> Control : usuario
+opt Usuario encontrado e ativo
+Control -> Mail : enviarLinkRedefinicao(email, token)
+Mail --> User : E-mail com link temporario
+end
+Control --> Boundary : Confirmacao de envio
+deactivate Control
+Boundary --> User : Informar instrucoes enviadas por e-mail
+deactivate Boundary
+
+== UC04 - Cadastrar Profissional ou Recepcao ==
+Admin -> Boundary : Informar e-mail, nome, matricula,\ndata_admissao e papeis (Profissional/Recepcao)
+activate Boundary
+Boundary -> Control : cadastrar_funcionario(email, nome, matricula, data_admissao)
+activate Control
+Control -> Entity : filter(username__iexact=email).exists()
+alt E-mail ja cadastrado (UC04 A1)
+Entity --> Control : True
+Control --> Boundary : ValidationError("E-mail ja cadastrado")
+Boundary --> Admin : Exibir erro de duplicidade
+else E-mail disponivel
+Entity --> Control : False
+Control -> Entity : User.objects.create_user(...)
+Control -> Entity : Funcionario.objects.create(usuario, matricula, data_admissao)
+Control -> Entity : Profissional/Recepcao.objects.create(funcionario)
+Entity --> Control : funcionario e papeis vinculados
+Control --> Boundary : Cadastro concluido
+Boundary --> Admin : Exibir confirmacao
+end
+deactivate Control
+deactivate Boundary
+@enduml

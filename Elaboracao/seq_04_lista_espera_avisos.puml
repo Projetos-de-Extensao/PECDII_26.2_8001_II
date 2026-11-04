@@ -1,0 +1,55 @@
+@startuml seq_04_lista_espera_avisos
+autonumber
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+title Diagrama de Sequencia - Lista de Espera e Avisos (UC19, UC20)
+
+actor "Atleta" as Atleta
+boundary "Interface de Agenda /\nNotificacoes" as Boundary
+control "Controlador de Lista de Espera\ne Notificacoes" as Control
+entity "ListaEspera" as WaitEntity
+entity "Notificacao / Aviso" as NotifEntity
+participant "Servico de Mensageria\n(E-mail / Push)" as Externo
+
+== UC19 - Entrar na Lista de Espera ==
+Atleta -> Boundary : Solicitar inclusao na lista de espera\n(servico, profissional, data_desejada, faixa_horario)
+activate Boundary
+Boundary -> Control : inscreverListaEspera(atleta, servico, profissional, data, faixa)
+activate Control
+Control -> WaitEntity : verificarInscricaoDuplicada(atleta, servico, data)
+alt Atleta ja esta na fila para o mesmo horario/servico (A1)
+WaitEntity --> Control : True
+Control --> Boundary : ValidationError("Atleta ja inscrito nesta lista de espera")
+Boundary --> Atleta : Informar inscricao ja existente (400)
+else Inscricao nova
+WaitEntity --> Control : False
+Control -> WaitEntity : create(atleta, servico, profissional, data, status="AGUARDANDO")
+activate WaitEntity
+WaitEntity --> Control : registro criado
+deactivate WaitEntity
+Control --> Boundary : 201 Created
+Boundary --> Atleta : Confirmar posicao na lista de espera
+end
+deactivate Control
+deactivate Boundary
+
+== UC20 - Receber Lembretes e Avisos (Vaga Liberada ou Lembrete de Sessao) ==
+Control -> WaitEntity : buscarProximosDaFila(servico, profissional, horario_vago)
+activate Control
+activate WaitEntity
+WaitEntity --> Control : atletas aguardando
+deactivate WaitEntity
+
+loop Para cada atleta elegivel ou com sessao proxima
+Control -> NotifEntity : registrarEnvio(usuario, tipo_aviso, mensagem)
+activate NotifEntity
+NotifEntity --> Control : notificacao salva
+deactivate NotifEntity
+Control -> Externo : enviarNotificacao(email_atleta, assunto, corpo)
+activate Externo
+Externo --> Atleta : Recebe alerta de vaga disponivel / lembrete de horario
+Externo --> Control : status de entrega
+deactivate Externo
+end
+deactivate Control
+@enduml
