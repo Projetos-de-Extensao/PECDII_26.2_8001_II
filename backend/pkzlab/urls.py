@@ -3,7 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from agenda.views import AgendamentoViewSet,AvisoViewSet
+from agenda.views import AgendamentoViewSet, AvisoViewSet, BloqueioViewSet, DisponibilidadeViewSet
 from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
 from pessoas.views import AtletaViewSet, ProfissionalViewSet, ResponsavelViewSet
 
@@ -17,6 +17,8 @@ router.register("atletas", AtletaViewSet)
 router.register("responsaveis", ResponsavelViewSet)
 router.register("agendamentos", AgendamentoViewSet)
 router.register("avisos", AvisoViewSet)
+router.register("disponibilidades", DisponibilidadeViewSet)
+router.register("bloqueios", BloqueioViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
