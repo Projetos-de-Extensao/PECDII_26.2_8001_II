@@ -1,4 +1,3 @@
-
 import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -113,3 +112,87 @@ class Aviso(models.Model):
 
     def __str__(self):
         return self.texto
+
+
+class Disponibilidade(models.Model):
+    # UC05: os turnos em que o profissional atende, por dia da semana (ex.: segunda, 08:00 às 12:00).
+    # O 0 é segunda, igual ao date.weekday() do Python.
+    class Dia(models.IntegerChoices):
+        SEGUNDA = 0, "Segunda-feira"
+        TERCA = 1, "Terça-feira"
+        QUARTA = 2, "Quarta-feira"
+        QUINTA = 3, "Quinta-feira"
+        SEXTA = 4, "Sexta-feira"
+        SABADO = 5, "Sábado"
+        DOMINGO = 6, "Domingo"
+
+    profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="disponibilidades")
+    dia_da_semana = models.PositiveSmallIntegerField(choices=Dia.choices)
+    hora_inicio = models.TimeField()
+    hora_fim = models.TimeField()
+
+    class Meta:
+        verbose_name_plural = "disponibilidades"
+        ordering = ["dia_da_semana", "hora_inicio"]
+
+    def clean(self):
+        if not (self.hora_inicio and self.hora_fim):
+            return  # campo faltando: quem avisa é a validação do próprio campo
+        if self.hora_fim <= self.hora_inicio:
+            raise ValidationError({"hora_fim": "O fim precisa ser depois do início."})
+        if self.profissional_id is not None and self.dia_da_semana is not None:
+            sobrepostos = Disponibilidade.objects.filter(
+                profissional_id=self.profissional_id, dia_da_semana=self.dia_da_semana,
+                hora_inicio__lt=self.hora_fim, hora_fim__gt=self.hora_inicio)
+            if self.pk:
+                sobrepostos = sobrepostos.exclude(pk=self.pk)
+            if sobrepostos.exists():
+                raise ValidationError("Este turno se sobrepõe a outro do mesmo dia.")
+
+    def __str__(self):
+        return f"{self.profissional} - {self.get_dia_da_semana_display()} {self.hora_inicio:%H:%M}-{self.hora_fim:%H:%M}"
+
+
+class Bloqueio(models.Model):
+    # UC05 e UC17: período em que um profissional (folga), uma sala (manutenção) ou um equipamento
+    # não pode ser usado. Cada bloqueio é de um só alvo.
+    profissional = models.ForeignKey(Profissional, null=True, blank=True, on_delete=models.PROTECT,
+                                     related_name="bloqueios")
+    espaco = models.ForeignKey(Espaco, null=True, blank=True, on_delete=models.PROTECT, related_name="bloqueios")
+    equipamento = models.ForeignKey(Equipamento, null=True, blank=True, on_delete=models.PROTECT,
+                                    related_name="bloqueios")
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField()
+    motivo = models.CharField(max_length=200)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-inicio"]
+
+    @property
+    def alvo(self):
+        return self.profissional or self.espaco or self.equipamento
+
+    def clean(self):
+        alvos = [a for a in (self.profissional_id, self.espaco_id, self.equipamento_id) if a]
+        if len(alvos) != 1:
+            raise ValidationError("Informe um só alvo: profissional, espaço ou equipamento.")
+        if self.inicio and self.fim and self.fim <= self.inicio:
+            raise ValidationError({"fim": "O fim precisa ser depois do início."})
+
+    def agendamentos_afetados(self):
+        # UC05 A1 e UC17 A1: os agendamentos ainda marcados que caem dentro do bloqueio
+        afetados = Agendamento.objects.filter(status=Agendamento.Status.AGENDADO,
+                                              inicio__lt=self.fim, fim__gt=self.inicio)
+        if self.profissional_id:
+            afetados = afetados.filter(profissional_id=self.profissional_id)
+        elif self.espaco_id:
+            afetados = afetados.filter(espaco_id=self.espaco_id)
+        elif self.equipamento_id:
+            afetados = afetados.filter(equipamentos=self.equipamento_id)
+        else:
+            return Agendamento.objects.none()
+        return afetados.distinct()
+
+    def __str__(self):
+        return f"{self.alvo} bloqueado de {self.inicio:%d/%m %H:%M} a {self.fim:%d/%m %H:%M}"
