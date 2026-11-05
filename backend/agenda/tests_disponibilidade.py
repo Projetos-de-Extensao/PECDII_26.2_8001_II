@@ -1,0 +1,222 @@
+"""Testes da issue #32: Disponibilidade e Bloqueio (UC05, UC17)."""
+from datetime import time
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from rest_framework.test import APIClient
+
+from estrutura.models import Equipamento
+from pkzlab.testes_comuns import hora
+
+from .models import Agendamento, Bloqueio, Disponibilidade
+from .tests import Base
+
+
+class DisponibilidadeDoProfissional(Base):
+    def turno(self, inicio, fim, dia=0, profissional=None):
+        return Disponibilidade(profissional=profissional or self.nutricionista, dia_da_semana=dia,
+                               hora_inicio=inicio, hora_fim=fim)
+
+    def test_fim_precisa_ser_depois_do_inicio(self):
+        with self.assertRaises(ValidationError) as erro:
+            self.turno(time(10), time(9)).full_clean()
+        self.assertIn("hora_fim", erro.exception.message_dict)
+
+    def test_turnos_do_mesmo_dia_nao_se_sobrepoem(self):
+        self.turno(time(8), time(12)).save()
+        with self.assertRaises(ValidationError):
+            self.turno(time(11), time(14)).full_clean()
+        self.turno(time(12), time(14)).full_clean()  # encostar não é sobrepor
+
+    def test_outro_dia_ou_outro_profissional_pode(self):
+        self.turno(time(8), time(12)).save()
+        self.turno(time(8), time(12), dia=1).full_clean()
+        self.turno(time(8), time(12), profissional=self.treinador).full_clean()
+
+    def test_editar_o_proprio_turno_nao_conta_como_sobreposicao(self):
+        d = self.turno(time(8), time(12))
+        d.save()
+        d.hora_fim = time(13)
+        d.full_clean()
+
+
+class BloqueioNoModel(Base):
+    def bloqueio(self, inicio, fim, **alvo):
+        return Bloqueio(inicio=inicio, fim=fim, motivo="Teste", **alvo)
+
+    def test_exige_um_so_alvo(self):
+        with self.assertRaises(ValidationError):
+            self.bloqueio(hora(2, 9), hora(2, 10)).full_clean()
+        with self.assertRaises(ValidationError):
+            self.bloqueio(hora(2, 9), hora(2, 10), profissional=self.nutricionista,
+                          espaco=self.consultorio).full_clean()
+        self.bloqueio(hora(2, 9), hora(2, 10), profissional=self.nutricionista).full_clean()
+
+    def test_fim_precisa_ser_depois_do_inicio(self):
+        with self.assertRaises(ValidationError):
+            self.bloqueio(hora(2, 10), hora(2, 9), profissional=self.nutricionista).full_clean()
+
+    def test_afetados_do_profissional(self):
+        dentro = self.agendar(hora(2, 9))
+        self.agendar(hora(2, 11))                       # depois do bloqueio
+        self.agendar(hora(2, 9, 30)).cancelar("Teste")  # cancelado não conta
+        b = self.bloqueio(hora(2, 9, 30), hora(2, 10), profissional=self.nutricionista)
+        self.assertEqual(list(b.agendamentos_afetados()), [dentro])
+
+    def test_encostar_no_bloqueio_nao_afeta(self):
+        self.agendar(hora(2, 9))  # 9:00 às 9:50
+        b = self.bloqueio(hora(2, 9, 50), hora(2, 10), profissional=self.nutricionista)
+        self.assertFalse(b.agendamentos_afetados().exists())
+
+    def test_afetados_da_sala(self):
+        a = self.agendar(hora(2, 9))
+        self.assertEqual(list(self.bloqueio(hora(2, 9), hora(2, 10), espaco=self.consultorio)
+                              .agendamentos_afetados()), [a])
+        self.assertFalse(self.bloqueio(hora(2, 9), hora(2, 10), espaco=self.academia)
+                         .agendamentos_afetados().exists())
+
+    def test_afetados_do_equipamento(self):
+        esteira = Equipamento.objects.create(nome="Esteira", quantidade=1)
+        a = self.agendar(hora(2, 9))
+        a.reservar_equipamentos([esteira])
+        self.agendar(hora(2, 9, 10), profissional=self.nutricionista)  # sem equipamento
+        b = self.bloqueio(hora(2, 9), hora(2, 10), equipamento=esteira)
+        self.assertEqual(list(b.agendamentos_afetados()), [a])
+
+
+class ApiDeDisponibilidade(Base):
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.nina = self.nutricionista.funcionario.usuario
+        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.turno = {"dia_da_semana": 0, "hora_inicio": "08:00", "hora_fim": "12:00"}
+
+    def test_profissional_cria_a_propria(self):
+        self.api.force_authenticate(self.nina)
+        r = self.api.post("/api/disponibilidades/", self.turno, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["profissional"], self.nutricionista.pk)
+
+    def test_profissional_nao_cria_para_outro(self):
+        self.api.force_authenticate(self.nina)
+        r = self.api.post("/api/disponibilidades/", {**self.turno, "profissional": self.treinador.pk},
+                          format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("profissional", r.data)
+        self.assertFalse(Disponibilidade.objects.exists())
+
+    def test_profissional_nao_mexe_na_de_outro(self):
+        do_teo = Disponibilidade.objects.create(profissional=self.treinador, dia_da_semana=0,
+                                                hora_inicio=time(8), hora_fim=time(12))
+        self.api.force_authenticate(self.nina)
+        self.assertEqual(self.api.patch(f"/api/disponibilidades/{do_teo.pk}/", {"hora_fim": "11:00"},
+                                        format="json").status_code, 403)
+        self.assertEqual(self.api.delete(f"/api/disponibilidades/{do_teo.pk}/").status_code, 403)
+
+    def test_profissional_edita_e_apaga_a_propria(self):
+        d = Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=0,
+                                           hora_inicio=time(8), hora_fim=time(12))
+        self.api.force_authenticate(self.nina)
+        r = self.api.patch(f"/api/disponibilidades/{d.pk}/", {"hora_fim": "11:00"}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(self.api.delete(f"/api/disponibilidades/{d.pk}/").status_code, 204)
+
+    def test_atleta_consulta_mas_nao_cadastra(self):
+        Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=0,
+                                       hora_inicio=time(8), hora_fim=time(12))
+        self.api.force_authenticate(self.joao.usuario)
+        self.assertEqual(self.api.get("/api/disponibilidades/").data["count"], 1)
+        self.assertEqual(self.api.post("/api/disponibilidades/", self.turno, format="json").status_code, 403)
+
+    def test_sem_login_nada(self):
+        self.assertEqual(self.api.get("/api/disponibilidades/").status_code, 403)
+
+    def test_sobreposicao_vira_400(self):
+        self.api.force_authenticate(self.nina)
+        self.api.post("/api/disponibilidades/", self.turno, format="json")
+        r = self.api.post("/api/disponibilidades/", {**self.turno, "hora_inicio": "11:00", "hora_fim": "13:00"},
+                          format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_fim_antes_do_inicio_vira_400(self):
+        self.api.force_authenticate(self.nina)
+        r = self.api.post("/api/disponibilidades/", {**self.turno, "hora_inicio": "12:00", "hora_fim": "08:00"},
+                          format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("hora_fim", r.data)
+
+    def test_admin_cria_para_qualquer_um_mas_precisa_dizer_quem(self):
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/disponibilidades/", {**self.turno, "profissional": self.treinador.pk},
+                          format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(self.api.post("/api/disponibilidades/", self.turno, format="json").status_code, 400)
+
+    def test_filtra_por_profissional(self):
+        for p in (self.nutricionista, self.treinador):
+            Disponibilidade.objects.create(profissional=p, dia_da_semana=0, hora_inicio=time(8),
+                                           hora_fim=time(12))
+        self.api.force_authenticate(self.nina)
+        r = self.api.get(f"/api/disponibilidades/?profissional={self.treinador.pk}")
+        self.assertEqual(r.data["count"], 1)
+
+
+class ApiDeBloqueio(Base):
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.pedido = {"profissional": self.nutricionista.pk, "inicio": hora(2, 9, 30).isoformat(),
+                       "fim": hora(2, 10).isoformat(), "motivo": "Folga"}
+
+    def test_so_o_admin_cria(self):
+        self.api.force_authenticate(self.nutricionista.funcionario.usuario)
+        self.assertEqual(self.api.post("/api/bloqueios/", self.pedido, format="json").status_code, 403)
+        self.assertFalse(Bloqueio.objects.exists())
+
+    def test_todos_consultam(self):
+        Bloqueio.objects.create(profissional=self.nutricionista, inicio=hora(2, 9), fim=hora(2, 10), motivo="Folga")
+        self.api.force_authenticate(self.joao.usuario)
+        self.assertEqual(self.api.get("/api/bloqueios/").data["count"], 1)
+
+    def test_admin_cria_sem_agendamento_no_caminho(self):
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/bloqueios/", self.pedido, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["agendamentos_afetados"], [])
+
+    def test_alerta_quando_pega_agendamento_marcado(self):
+        a = self.agendar()  # 9:00 às 9:50, dentro do bloqueio
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/bloqueios/", self.pedido, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("confirmar", r.data)
+        self.assertIn(a.protocolo, str(r.data["confirmar"]))
+        self.assertFalse(Bloqueio.objects.exists())
+
+    def test_confirmando_grava_e_nao_mexe_no_agendamento(self):
+        a = self.agendar()
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/bloqueios/", {**self.pedido, "confirmar": True}, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["agendamentos_afetados"], [a.protocolo])
+        a.refresh_from_db()
+        self.assertEqual(a.status, Agendamento.Status.AGENDADO)
+
+    def test_bloqueio_de_sala_tambem_alerta(self):
+        self.agendar()
+        self.api.force_authenticate(self.admin)
+        r = self.api.post("/api/bloqueios/", {"espaco": self.consultorio.pk, "inicio": hora(2, 9).isoformat(),
+                                              "fim": hora(2, 10).isoformat(), "motivo": "Manutenção"},
+                          format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("confirmar", r.data)
+
+    def test_exige_um_so_alvo(self):
+        self.api.force_authenticate(self.admin)
+        sem_alvo = {"inicio": hora(2, 9).isoformat(), "fim": hora(2, 10).isoformat(), "motivo": "Teste"}
+        self.assertEqual(self.api.post("/api/bloqueios/", sem_alvo, format="json").status_code, 400)
+        dois = {**sem_alvo, "profissional": self.nutricionista.pk, "espaco": self.consultorio.pk}
+        self.assertEqual(self.api.post("/api/bloqueios/", dois, format="json").status_code, 400)
+        self.assertFalse(Bloqueio.objects.exists())

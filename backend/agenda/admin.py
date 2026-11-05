@@ -1,6 +1,6 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
-from .models import Agendamento,Aviso
+from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
 
 
 @admin.register(Agendamento)
@@ -24,3 +24,25 @@ class AvisoAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(Disponibilidade)
+class DisponibilidadeAdmin(admin.ModelAdmin):
+    list_display = ("profissional", "dia_da_semana", "hora_inicio", "hora_fim")
+    list_filter = ("dia_da_semana", "profissional")
+
+
+@admin.register(Bloqueio)
+class BloqueioAdmin(admin.ModelAdmin):
+    list_display = ("alvo", "inicio", "fim", "motivo")
+    list_filter = ("profissional", "espaco", "equipamento")
+    search_fields = ("motivo",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # UC05 A1 / UC17 A1: o bloqueio é gravado, mas o admin é avisado do que ele atinge
+        protocolos = list(obj.agendamentos_afetados().values_list("protocolo", flat=True))
+        if protocolos:
+            self.message_user(request, "Atenção: este bloqueio atinge agendamentos já marcados: "
+                                       + ", ".join(protocolos) + ". Reagende ou cancele cada um.",
+                              messages.WARNING)

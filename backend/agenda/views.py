@@ -2,11 +2,16 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
 
-from .models import Agendamento,Aviso
-from .serializers import AgendamentoSerializer, CancelarSerializer, ReagendarSerializer, erro_da_api,AvisoSerializer
+from pkzlab.permissoes import SoAdminAltera
+
+from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
+from .permissoes import ProfissionalMantemAPropria
+from .serializers import (AgendamentoSerializer, AvisoSerializer, BloqueioSerializer, CancelarSerializer,
+                          DisponibilidadeSerializer, ReagendarSerializer, erro_da_api)
 from .perfis import profissional_de, ve_a_agenda_toda
 
 
@@ -78,3 +83,26 @@ class AvisoViewSet(viewsets.ReadOnlyModelViewSet):
         aviso = self.get_object()
         aviso.marcar_como_lido()
         return Response(AvisoSerializer(aviso).data)
+
+
+@extend_schema(parameters=[OpenApiParameter("profissional", int, description="Só os turnos deste profissional.")])
+class DisponibilidadeViewSet(viewsets.ModelViewSet):
+    # UC05: todo mundo consulta; o profissional mantém a própria (a equipe administrativa, a de qualquer um)
+    queryset = Disponibilidade.objects.select_related("profissional__funcionario__usuario")
+    serializer_class = DisponibilidadeSerializer
+    permission_classes = [IsAuthenticated, ProfissionalMantemAPropria]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        profissional = self.request.query_params.get("profissional")
+        if profissional and profissional.isdigit():
+            qs = qs.filter(profissional=profissional)
+        return qs
+
+
+class BloqueioViewSet(viewsets.ModelViewSet):
+    # UC05 e UC17: só a equipe administrativa cria bloqueios; os demais consultam.
+    # Se o bloqueio pegar agendamento já marcado, a API recusa com a lista deles até receber confirmar=true.
+    queryset = Bloqueio.objects.select_related("profissional__funcionario__usuario", "espaco", "equipamento")
+    serializer_class = BloqueioSerializer
+    permission_classes = [IsAuthenticated, SoAdminAltera]

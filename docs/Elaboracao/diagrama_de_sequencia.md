@@ -93,61 +93,73 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 
 ---
 
-### 2. Disponibilidade e Agendamento (UC05, UC06, UC07)
+### 2. Disponibilidade, Bloqueios e Agendamento (UC05, UC06, UC07, UC17)
 
 ##### 2.1 Identificação
 
-- **Caso de Uso:** Gerenciar disponibilidade, Criar agendamento e Verificar disponibilidade
-- **ID do Caso de Uso:** UC05, UC06, UC07
-- **Ator(es):** Profissional, Atleta e Recepção
+- **Caso de Uso:** Gerenciar disponibilidade, Criar agendamento, Verificar disponibilidade e Gerenciar espaços e equipamentos (bloqueios)
+- **ID do Caso de Uso:** UC05, UC06, UC07, UC17
+- **Ator(es):** Profissional, Administrador, Atleta e Recepção
 - **Prioridade:** Alta
 - **Responsável:** Equipe PKZ LAB
-- **Data:** 03/11/2026
+- **Data:** 04/11/2026
 
 ##### 2.2 Referências
 
-- **Requisitos relacionados (ID):** RF05, RF06, RF07
+- **Requisitos relacionados (ID):** RF05, RF06, RF07, RF17
 - **Diagrama de Caso de Uso (link/imagem):** [Casos de Uso](./casos_de_uso.md)
 - **Protótipo de Baixa Fidelidade (tela/fluxo):** Tela de Configuração de Disponibilidade e Tela de Novo Agendamento
-- **Regra(s) de negócio associada(s):** Apenas profissionais ativos (`Profissional.ativos()`) que atendem à especialidade do serviço podem receber agendamentos (`UC06 A4`); respeito à capacidade máxima do `Espaco` e ausência de conflito de horário.
+- **Regra(s) de negócio associada(s):** Apenas profissionais ativos (`Profissional.ativos()`) que atendem à especialidade do serviço podem receber agendamentos (`UC06 A4`); respeito à capacidade máxima do `Espaco` e ausência de conflito de horário; cada profissional mantém só a própria disponibilidade; bloqueio que atinge agendamento já marcado exige confirmação (`UC05 A1`, `UC17 A1`).
 
 ##### 2.3 Cenário Modelado
 
-- **Objetivo do cenário:** Permitir o gerenciamento de turnos pelos profissionais, a consulta de horários disponíveis e a criação de agendamentos validando conflitos de espaço, profissional e atleta.
+- **Objetivo do cenário:** Permitir o gerenciamento de turnos pelos profissionais (`Disponibilidade`), o registro de bloqueios de profissional, espaço ou equipamento pelo administrador (`Bloqueio`), a consulta de horários disponíveis e a criação de agendamentos validando conflitos de espaço, profissional e atleta.
 - **Pré-condições:** Serviço, espaço e profissional ativos e configurados.
-- **Pós-condições:** Agendamento persistido no banco de dados e vaga ocupada no horário/espaço.
-- **Gatilho de início:** Consulta de horários livres ou submissão de `POST /api/agendamentos/`.
+- **Pós-condições:** Turnos e bloqueios persistidos; agendamento persistido no banco de dados e vaga ocupada no horário/espaço.
+- **Gatilho de início:** Cadastro de turno (`POST /api/disponibilidades/`), registro de bloqueio (`POST /api/bloqueios/`), consulta de horários livres ou submissão de `POST /api/agendamentos/`.
+- **Nota de escopo (issue #32):** nesta versão apenas o administrador cria bloqueios. O bloqueio feito pelo próprio profissional (passo 3 do fluxo principal do `UC05`) e o uso de turnos e bloqueios na verificação de disponibilidade (`UC07`) ainda não estão implementados.
 
 ##### 2.4 Participantes (Lifelines)
 
-- **Ator:** Profissional / Atleta / Recepção
-- **Boundary (Interface/Tela):** `AgendamentoViewSet` (`/api/agendamentos/`)
-- **Control (Orquestração):** `AgendamentoSerializer` e controlador de validação de agenda
-- **Entity (Dados/Serviços):** `Disponibilidade`, `Profissional`, `Servico`, `Espaco`, `Agendamento`
+- **Ator:** Profissional / Administrador / Atleta / Recepção
+- **Boundary (Interface/Tela):** `DisponibilidadeViewSet` (`/api/disponibilidades/`), `BloqueioViewSet` (`/api/bloqueios/`) e `AgendamentoViewSet` (`/api/agendamentos/`)
+- **Control (Orquestração):** `DisponibilidadeSerializer`, `BloqueioSerializer` e `AgendamentoSerializer`
+- **Entity (Dados/Serviços):** `Disponibilidade`, `Bloqueio`, `Profissional`, `Servico`, `Espaco`, `Equipamento`, `Agendamento`
 - **Sistemas externos (se houver):** Não se aplica
 
 ##### 2.5 Fluxo Principal (mensagens)
 
 | Passo | Remetente | Destinatário | Mensagem/Ação | Tipo (sync/async/retorno) |
 |------:|-----------|--------------|---------------|----------------------------|
-| 1 |Profissional | Boundary | Definir turnos de atendimento ou bloqueios (`UC05`) | sync |
-| 2 | Atleta/Recepção | Boundary | Consultar horários livres para serviço, profissional e data (`UC07`) | sync |
-| 3 | Atleta/Recepção | Boundary | `POST /api/agendamentos/` com profissional, serviço, espaço e horário (`UC06`) | sync |
-| 4 | Boundary | Control | Validar habilitação do profissional, disponibilidade e capacidade do espaço | sync |
-| 5 | Control | Entity (`Agendamento`) | Gravar agendamento e retornar confirmação (`201 Created`) | retorno |
+| 1 | Profissional | Boundary | `POST /api/disponibilidades/` com dia da semana, hora de início e fim (`UC05`) | sync |
+| 2 | Boundary | Control | Validar que o turno é do próprio profissional, que o fim é depois do início e que não se sobrepõe a outro turno do dia | sync |
+| 3 | Control | Entity (`Disponibilidade`) | Gravar turno e retornar `201 Created` | retorno |
+| 4 | Administrador | Boundary | `POST /api/bloqueios/` com um alvo (profissional, espaço ou equipamento), período, motivo e `confirmar` (`UC05`, `UC17`) | sync |
+| 5 | Control | Entity (`Agendamento`) | Buscar agendamentos `AGENDADO` atingidos pelo período do bloqueio | sync |
+| 6 | Control | Entity (`Bloqueio`) | Gravar bloqueio quando não há agendamentos atingidos ou quando `confirmar=true` | retorno |
+| 7 | Atleta/Recepção | Boundary | Consultar horários livres para serviço, profissional e data (`UC07`) | sync |
+| 8 | Atleta/Recepção | Boundary | `POST /api/agendamentos/` com profissional, serviço, espaço e horário (`UC06`) | sync |
+| 9 | Boundary | Control | Validar habilitação do profissional, disponibilidade e capacidade do espaço | sync |
+| 10 | Control | Entity (`Agendamento`) | Gravar agendamento e retornar confirmação (`201 Created`) | retorno |
 
 ##### 2.6 Fluxos Alternativos e Exceções
 
 | ID | Condição | Descrição do fluxo | Impacto |
 |----|----------|--------------------|---------|
-| A1 | Bloqueio sobrepõe agendamento (`UC05`) | Profissional registra bloqueio em horário já agendado | Sistema alerta sobre os agendamentos afetados antes de confirmar |
+| A1 | Bloqueio sobrepõe agendamento (`UC05`, `UC17`) | Administrador registra bloqueio em horário que já tem agendamento `AGENDADO` | API recusa (`400 Bad Request`) listando os protocolos afetados; só grava com `confirmar=true`, e os agendamentos continuam marcados até serem reagendados ou cancelados |
 | A2 | Conflito de horário ou capacidade esgotada (`UC06`) | Profissional/atleta já possui agendamento no horário ou espaço atingiu lotação | Rejeita criação (`400 Bad Request`) e sugere Lista de Espera (`UC19`) |
 | E1 | Profissional inativo ou não habilitado (`UC06 A4`) | `profissional.atende(servico.especialidade)` é `False` ou conta inativa | Impede o agendamento com `ValidationError` |
+| E2 | Turno inválido (`UC05`) | Fim antes do início ou turno sobreposto a outro do mesmo profissional no mesmo dia | Rejeita cadastro (`400 Bad Request`) |
+| E3 | Turno de outro profissional (`UC05`) | Profissional tenta cadastrar (`400`) ou alterar/apagar (`403`) turno que não é dele | Operação recusada |
+| E4 | Bloqueio sem alvo único (`UC17`) | Nenhum alvo, mais de um alvo, ou fim antes do início | Rejeita cadastro (`400 Bad Request`) |
 
 ##### 2.7 Regras de Negócio Aplicadas
 
 - **RN-04 (Habilitação Técnica):** O profissional deve estar ativo e possuir a especialidade exigida pelo serviço (`UC06 A4`).
 - **RN-05 (Capacidade e Não Sobreposição):** O número de agendamentos simultâneos não pode exceder a capacidade do `Espaco`, nem sobrepor outro atendimento do mesmo profissional ou atleta.
+- **RN-14 (Disponibilidade Própria):** Cada profissional mantém apenas a própria disponibilidade; a equipe administrativa (`is_staff`) pode cadastrar para qualquer profissional.
+- **RN-15 (Turnos sem Sobreposição):** Os turnos de um profissional no mesmo dia da semana não se sobrepõem, e o fim é sempre depois do início.
+- **RN-16 (Bloqueio com Confirmação):** Cada bloqueio tem um único alvo (profissional, espaço ou equipamento). Se atingir agendamentos já marcados, só é gravado com confirmação explícita, e nunca altera esses agendamentos.
 
 ##### 2.8 Pontos de Validação
 
@@ -159,11 +171,9 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 
 ##### 2.9 Artefatos
 
-- **Imagem do Diagrama de Sequência:** ![Disponibilidade e Agendamento](./seq_02_disponibilidade_agendamento.png)
+- **Imagem do Diagrama de Sequência:** ![Disponibilidade, Bloqueios e Agendamento](./seq_02_disponibilidade_agendamento.png)
 - **Arquivo fonte (PlantUML):** [seq_02_disponibilidade_agendamento.puml](./seq_02_disponibilidade_agendamento.puml)
-- **Versão:** 1.0
-
----
+- **Versão:** 1.1 (04/11/2026: inclusão de `Disponibilidade` e `Bloqueio` com alerta de agendamentos afetados, issue #32; correção do status inicial para `AGENDADO`)
 
 ### 3. Ciclo do Agendamento (UC08, UC09, UC10)
 
