@@ -2,32 +2,58 @@
 autonumber
 skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
-title Diagrama de Sequencia - Disponibilidade e Agendamento (UC05, UC06, UC07)
+title Diagrama de Sequencia - Disponibilidade, Bloqueios e Agendamento (UC05, UC06, UC07, UC17)
 
 actor "Profissional" as Prof
+actor "Administrador" as Admin
 actor "Atleta / Recepcao" as Cliente
-boundary "Interface de Agenda\n(/api/agendamentos/)" as Boundary
-control "Controlador de Agenda\n(agenda.services)" as Control
+boundary "Interface de Agenda\n(/api/disponibilidades/,\n/api/bloqueios/,\n/api/agendamentos/)" as Boundary
+control "Controlador de Agenda\n(agenda.serializers)" as Control
 entity "Disponibilidade /\nBloqueio" as DispEntity
-entity "Profissional / Servico /\nEspaco" as EstruturaEntity
+entity "Profissional / Servico /\nEspaco / Equipamento" as EstruturaEntity
 entity "Agendamento" as AgEntity
 
-== UC05 - Gerenciar Disponibilidade ==
-Prof -> Boundary : Definir grade de horarios ou registrar bloqueio
+== UC05 - Gerenciar Disponibilidade (turnos do profissional) ==
+Prof -> Boundary : POST /api/disponibilidades/ (dia_da_semana, hora_inicio, hora_fim)
 activate Boundary
-Boundary -> Control : salvarDisponibilidade(profissional, dia_semana, inicio, fim)
+Boundary -> Control : salvarDisponibilidade(usuario, dados)
 activate Control
-Control -> AgEntity : verificarAgendamentosAfetados(profissional, intervalo)
-alt Existem agendamentos conflitantes com novo bloqueio (A1)
-AgEntity --> Control : lista de agendamentos ativos
-Control --> Boundary : Alerta de conflito com atendimentos marcados
-Boundary --> Prof : Solicitar confirmacao ou reagendamento previo
-else Sem conflitos
-AgEntity --> Control : vazio
-Control -> DispEntity : gravarHorarios(profissional, inicio, fim)
+alt Profissional tenta cadastrar para outro profissional (RN-14)
+Control --> Boundary : ValidationError("Voce so mantem a sua propria disponibilidade")
+Boundary --> Prof : 400 Bad Request
+else Fim antes do inicio ou turno sobreposto no mesmo dia (RN-15)
+Control --> Boundary : ValidationError("Turno invalido ou sobreposto")
+Boundary --> Prof : 400 Bad Request
+else Turno valido
+Control -> DispEntity : Disponibilidade.objects.create(profissional, dia_da_semana, inicio, fim)
 DispEntity --> Control : disponibilidade salva
-Control --> Boundary : 200 OK
-Boundary --> Prof : Exibir grade atualizada
+Control --> Boundary : 201 Created
+Boundary --> Prof : Exibir turno cadastrado
+end
+deactivate Control
+deactivate Boundary
+
+== UC05 e UC17 - Gerenciar Bloqueios (Administrador) ==
+Admin -> Boundary : POST /api/bloqueios/ (profissional OU espaco OU equipamento,\ninicio, fim, motivo, confirmar)
+activate Boundary
+Boundary -> Control : criarBloqueio(dados, confirmar)
+activate Control
+alt Nenhum alvo, mais de um alvo ou fim antes do inicio
+Control --> Boundary : ValidationError("Informe um so alvo / periodo invalido")
+Boundary --> Admin : 400 Bad Request
+else Alvo e periodo validos
+Control -> AgEntity : agendamentosAfetados(alvo, inicio, fim) [status AGENDADO]
+alt Ha agendamentos atingidos e confirmar != true (A1)
+AgEntity --> Control : protocolos dos agendamentos afetados
+Control --> Boundary : ValidationError(confirmar: lista de protocolos) (RN-16)
+Boundary --> Admin : 400 com a lista; nada e gravado
+else Sem agendamentos atingidos ou confirmar = true
+AgEntity --> Control : vazio ou confirmado
+Control -> DispEntity : Bloqueio.objects.create(alvo, inicio, fim, motivo)
+DispEntity --> Control : bloqueio salvo
+Control --> Boundary : 201 Created (inclui agendamentos_afetados)
+Boundary --> Admin : Exibir bloqueio; agendamentos continuam AGENDADO ate serem reagendados/cancelados
+end
 end
 deactivate Control
 deactivate Boundary
@@ -39,8 +65,8 @@ Boundary -> Control : consultarHorariosDisponiveis(servico, profissional, espaco
 activate Control
 Control -> EstruturaEntity : validarProfissionalAtivoEEspecialidade(profissional, servico)
 EstruturaEntity --> Control : valido (UC06 A4)
-Control -> DispEntity : obterTurnosProfissionalEEspaco(profissional, espaco, data)
-DispEntity --> Control : turnos base
+Control -> DispEntity : obterTurnosEBloqueios(profissional, espaco, equipamentos, data)
+DispEntity --> Control : turnos base descontados os bloqueios
 Control -> AgEntity : listarOcupacoesNoDia(profissional, espaco, data)
 AgEntity --> Control : horarios ja ocupados / capacidade atual
 Control --> Boundary : Lista de slots disponiveis
@@ -49,7 +75,7 @@ Boundary --> Cliente : Exibir horarios livres
 deactivate Boundary
 
 == UC06 - Criar Agendamento (Com Fluxos Alternativos e Conflitos) ==
-Cliente -> Boundary : POST /api/agendamentos/ (atleta, servico, profissional, espaco, inicio, fim)
+Cliente -> Boundary : POST /api/agendamentos/ (atleta, servico, profissional, espaco, inicio, equipamentos)
 activate Boundary
 Boundary -> Control : criarAgendamento(dados)
 activate Control
@@ -64,7 +90,7 @@ AgEntity --> Control : Conflito detectado
 Control --> Boundary : ValidationError("Conflito de horario ou capacidade do espaco esgotada")
 Boundary --> Cliente : 400 Bad Request (Sugerir Lista de Espera - UC19)
 else Horario livre e regras atendidas
-Control -> AgEntity : Agendamento.objects.create(status="CONFIRMADO", ...)
+Control -> AgEntity : Agendamento.objects.create(status="AGENDADO", ...)
 activate AgEntity
 AgEntity --> Control : agendamento
 deactivate AgEntity
