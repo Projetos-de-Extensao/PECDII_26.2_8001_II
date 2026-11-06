@@ -276,14 +276,15 @@ Administrador -- UC21
 - **Pré-condições:** Usuário possui conta ativa na plataforma (atleta e responsável por autocadastro; profissionais e recepção cadastrados pelo administrador).
 - **Fluxo principal:**
   1. Usuário acessa a tela de login.
-  2. Usuário informa e-mail e senha.
+  2. Usuário informa e-mail e senha (o e-mail não diferencia maiúsculas de minúsculas).
   3. Sistema valida as credenciais.
-  4. Sistema identifica o perfil do usuário e carrega o painel correspondente, aplicando o controle de acesso por perfil.
+  4. Sistema devolve um token de acesso (JWT, validade de 30 minutos) e um token de renovação (7 dias). O cliente envia o token de acesso em toda requisição seguinte.
+  5. Sistema aplica o controle de acesso por perfil, liberando só os dados e funcionalidades permitidos.
 - **Fluxos alternativos:**
-  - **A1 — Credenciais inválidas:** sistema exibe mensagem genérica ("E-mail ou senha incorretos"), sem indicar qual campo falhou, e retorna ao passo 2.
-  - **A2 — Conta inativa:** sistema exibe "Conta inativa. Procure a administração do CT" e impede o acesso.
-  - **A3 — "Manter-me conectado" marcado:** sistema prolonga a validade da sessão no dispositivo.
-- **Pós-condições:** Sessão autenticada criada; usuário passa a acessar apenas os dados e funcionalidades permitidos ao seu perfil.
+  - **A1 — Credenciais inválidas:** sistema responde com mensagem genérica ("E-mail ou senha incorretos"), sem indicar qual campo falhou, e retorna ao passo 2.
+  - **A2 — Conta inativa:** sistema responde exatamente como em A1, para não revelar se a conta existe ou está inativa (RNF05). A administração do CT orienta o funcionário fora do sistema.
+  - **A3 — "Manter-me conectado" marcado:** o cliente guarda o token de renovação e obtém novos tokens de acesso sem pedir a senha, por até 7 dias.
+  - **A4 — Token de acesso expirado:** sistema responde 401; o cliente usa o token de renovação. Se ele também expirou, retorna ao passo 2.
 
 ---
 
@@ -296,7 +297,7 @@ Administrador -- UC21
   2. Usuário preenche nome completo, e-mail, telefone, senha e confirmação de senha.
   3. Usuário seleciona o tipo de perfil (Atleta ou Responsável) e informa a data de nascimento.
   4. Usuário aceita os termos de uso e a política de privacidade (LGPD).
-  5. Sistema valida os dados e cria a conta.
+  5. Sistema valida os dados, valida a força da senha e cria a conta.
   6. Sistema ativa a conta automaticamente, conforme a política de autocadastro do CT.
 - **Fluxos alternativos:**
   - **A1 — Atleta menor de 18 anos:** sistema torna obrigatório o vínculo com um responsável (e-mail do responsável) antes de concluir o cadastro, em conformidade com o ECA.
@@ -313,11 +314,13 @@ Administrador -- UC21
 - **Fluxo principal:**
   1. Usuário seleciona "Esqueci minha senha" na tela de login.
   2. Usuário informa o e-mail cadastrado.
-  3. Sistema envia um link de redefinição de senha para o e-mail informado.
-  4. Usuário acessa o link, define e confirma uma nova senha.
-  5. Sistema atualiza a senha.
+  3. Sistema envia ao e-mail um link de redefinição, válido por 1 hora e de uso único.
+  4. Usuário acessa o link, define e confirma uma nova senha, que deve atender às regras de senha do sistema.
+  5. Sistema atualiza a senha e invalida o link.
 - **Fluxos alternativos:**
-  - **A1 — E-mail não cadastrado:** por segurança, o sistema exibe a mesma mensagem de confirmação de envio, sem indicar se o e-mail existe na base.
+  - **A1 — E-mail não cadastrado (ou conta inativa):** o sistema exibe a mesma mensagem de confirmação, sem enviar e-mail, para não revelar se o e-mail existe.
+  - **A2 — Link inválido, expirado ou já usado:** sistema recusa a redefinição e pede uma nova recuperação.
+  - **A3 — Excesso de pedidos:** o sistema limita os pedidos de recuperação (5 por hora) e recusa os excedentes.
 - **Pós-condições:** Senha atualizada; usuário pode autenticar-se (UC01) com a nova senha.
 
 ---
@@ -653,3 +656,4 @@ A definição dos casos de uso permitiu transformar os requisitos elicitados no 
 | 23/09/2026 | 1.0 | Criação do documento de casos de uso, a partir do Brainstorm, 5W2H, Pesquisa, Mapa Mental e Protótipo de Baixa Fidelidade | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 23/09/2026 | 1.1 | Diagrama de casos de uso dividido em visão geral por área funcional e quatro diagramas detalhados, para reduzir o cruzamento de linhas | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 26/10/2026 | 1.2 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação; inclusão do cadastro de serviços (UC18/RF19), pedido no MVP do enunciado; UC04 com papéis acumuláveis; UC06 com escolha por modalidade e caixinhas de horário; aulas em grupo, lista de espera (UC19) e lembretes (UC20); grade de aulas (UC21), salas por especialidade e confirmação da vaga | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 05/11/2026 | 1.3 | Autenticação por token JWT (UC01), recuperação de senha com link de uso único (UC03) e senha validada no cadastro (UC02); conta inativa passa a ter a mesma resposta de credencial inválida (RNF05) | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |

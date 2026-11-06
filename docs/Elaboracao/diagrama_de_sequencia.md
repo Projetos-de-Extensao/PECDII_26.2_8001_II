@@ -31,7 +31,7 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 
 ##### 1.2 Referências
 
-- **Requisitos relacionados (ID):** RF01, RF02, RF03, RF04, RNF-LGPD
+- **Requisitos relacionados (ID):** RF01, RF02, RF03, RF04, RNF-LGPD, RNF02
 - **Diagrama de Caso de Uso (link/imagem):** [Casos de Uso](./casos_de_uso.md)
 - **Protótipo de Baixa Fidelidade (tela/fluxo):** Telas de Login, Autocadastro de Atleta, Recuperação de Senha e Cadastro de Equipe
 - **Regra(s) de negócio associada(s):** E-mail único como login (`UC04 A1`), obrigatoriedade de responsável para menor de 18 anos (`UC02`), registro de consentimento LGPD com versão dos termos (`UC02`) e acúmulo de papéis sob a mesma matrícula (`UC04 A3`).
@@ -41,13 +41,13 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 - **Objetivo do cenário:** Garantir a autenticação segura e o cadastro transacional (`@transaction.atomic`) do login (`auth.User`) junto ao perfil (`Atleta`, `Responsavel`, `ConsentimentoLGPD`, `Funcionario` e papéis).
 - **Pré-condições:** Para UC02, aceitar os termos LGPD; para UC04, estar autenticado como Administrador.
 - **Pós-condições:** Conta criada com consentimento registrado ou sessão autenticada.
-- **Gatilho de início:** Envio de credenciais de login, solicitação de autocadastro (`/api/atletas/`), pedido de recuperação de senha ou cadastro de membro da equipe.
+- **Gatilho de início:** Envio de credenciais em POST /api/token/, autocadastro em POST /api/cadastro/, pedido de recuperação de senha em POST /api/senha/recuperar/ ou cadastro de membro da equipe.
 
 ##### 1.4 Participantes (Lifelines)
 
 - **Ator:** Visitante / Atleta / Administrador
-- **Boundary (Interface/Tela):** `AtletaViewSet` (`/api/atletas/`), `AuthView` (`/api/auth/`) e Painel Admin
-- **Control (Orquestração):** `AtletaSerializer`, `pessoas.cadastros.cadastrar_atleta` e `pessoas.cadastros.cadastrar_funcionario`
+- **Boundary (Interface/Tela):** TokenPorEmailView (/api/token/), CadastroView (/api/cadastro/), SolicitarRecuperacaoView e RedefinirSenhaView (/api/senha/) e Painel Admin.
+- **Control (Orquestração):** TokenPorEmailSerializer, CadastroSerializer, pessoas.cadastros.cadastrar_atleta, cadastrar_responsavel e cadastrar_funcionario
 - **Entity (Dados/Serviços):** `auth.User`, `Atleta`, `Responsavel`, `ConsentimentoLGPD`, `Funcionario`, `Profissional`, `Recepcao`, `Administrador`
 - **Sistemas externos (se houver):** Serviço de E-mail (recuperação de senha no UC03)
 
@@ -55,13 +55,16 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 
 | Passo | Remetente | Destinatário | Mensagem/Ação | Tipo (sync/async/retorno) |
 |------:|-----------|--------------|---------------|----------------------------|
-| 1 | Visitante | Boundary (`/api/atletas/`) | `POST /api/atletas/` (dados pessoais, nascimento, aceite LGPD, responsável) | sync |
-| 2 | Boundary | Control (`cadastrar_atleta`) | Validar dados e iniciar transação atômica | sync |
-| 3 | Control | Entity (`Responsavel`) | Criar ou vincular responsável legal (se menor de idade) | sync |
-| 4 | Control | Entity (`auth.User`) | `create_user(username=email, ...)` | sync |
-| 5 | Control | Entity (`ConsentimentoLGPD`) | `create(usuario, versao_termos)` | sync |
-| 6 | Control | Entity (`Atleta`) | `create(usuario, data_nascimento, responsavel)` | sync |
-| 7 | Control | Boundary | Retornar instância de `Atleta` (`201 Created`) | retorno |
+| 1 | Usuário | Boundary (`/api/token/`) | `POST` com e-mail e senha (UC01) | sync |
+| 2 | Boundary | Control (`TokenPorEmailSerializer`) | Buscar o login sem diferenciar caixa e autenticar | sync |
+| 3 | Control | Boundary | Retornar `access` e `refresh` (`200 OK`) | retorno |
+| 4 | Visitante | Boundary (`/api/cadastro/`) | `POST` com `tipo`, dados pessoais e aceite LGPD (UC02) | sync |
+| 5 | Boundary | Control | Validar dados e a força da senha; chamar `cadastrar_atleta` ou `cadastrar_responsavel` em transação atômica | sync |
+| 6 | Control | Entity | Criar `auth.User`, `ConsentimentoLGPD` e `Atleta` ou `Responsavel` | sync |
+| 7 | Control | Boundary | Retornar o cadastro criado (`201 Created`) | retorno |
+| 8 | Usuário | Boundary (`/api/senha/recuperar/`) | `POST` com e-mail (UC03) | sync |
+| 9 | Control | Serviço de E-mail | Enviar link com `uid` e token, válido por 1 hora | async |
+| 10 | Usuário | Boundary (`/api/senha/redefinir/`) | `POST` com `uid`, token e nova senha | sync |
 
 ##### 1.6 Fluxos Alternativos e Exceções
 
@@ -69,13 +72,18 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 |----|----------|--------------------|---------|
 | A1 | E-mail já cadastrado | `User.objects.filter(username__iexact=email).exists()` retorna `True` | Lança `ValidationError`, aborta transação e retorna `400 Bad Request` |
 | A2 | Atleta menor de 18 anos sem responsável | Cálculo da idade indica `< 18` e `responsavel` não foi informado | Lança `ValidationError` exigindo responsável legal |
+| A3 | Credencial inválida ou conta inativa (UC01) | Autenticação falha | `401` com a mesma mensagem nos dois casos |
+| A4 | Token de acesso expirado (UC01) | Cliente chama `POST /api/token/refresh/` | Novo `access`; se o `refresh` expirou, volta ao login |
+| A5 | E-mail inexistente na recuperação (UC03) | Nenhum usuário ativo encontrado | `200` com a mesma mensagem e sem envio de e-mail |
 | E1 | Termos LGPD não aceitos | `aceitou_termos=False` na requisição | Rejeita cadastro sem gravar usuário no banco |
+| E2 | Link de redefinição inválido, expirado ou já usado (UC03) | Token não confere | `400 Bad Request`; nova recuperação necessária |
 
 ##### 1.7 Regras de Negócio Aplicadas
 
 - **RN-01 (Login Único):** O e-mail é utilizado como identificador de login (`username`) e não pode se repetir.
 - **RN-02 (Menor de Idade):** Atletas menores de 18 anos exigem vínculo obrigatório com um `Responsavel`.
 - **RN-03 (LGPD):** Todo cadastro de atleta exige o registro de `ConsentimentoLGPD` com data/hora e versão dos termos.
+- **RN-17 (Resposta Uniforme):** Login com senha errada ou conta inativa, e recuperação de senha para e-mail inexistente, respondem de forma indistinguível (RNF05).
 
 ##### 1.8 Pontos de Validação
 

@@ -43,9 +43,9 @@ Cada requisito funcional corresponde a um caso de uso do documento de Casos de U
 
 | ID | Descrição | Prioridade | Origem (BS) | Caso de Uso |
 | -- | -- | -- | -- | -- |
-| RF01 | O sistema deve permitir que o usuário se autentique com e-mail e senha, carregando o painel conforme seu perfil. | Alta | BS12, BS13 | UC01 |
+| RF01 | O sistema deve permitir que o usuário se autentique com e-mail e senha, recebendo um token de acesso (JWT) e carregando o painel conforme seu perfil. | Alta | BS12, BS13 | UC01 |
 | RF02 | O sistema deve permitir que atletas e responsáveis se cadastrem na plataforma, com aceite dos termos de uso (LGPD). | Alta | BS01, BS13 | UC02 |
-| RF03 | O sistema deve permitir a recuperação de senha via link enviado ao e-mail cadastrado. | Média | BS13 | UC03 |
+| RF03 | O sistema deve permitir a recuperação de senha via link de uso único, válido por 1 hora, enviado ao e-mail cadastrado. | Média | BS13 | UC03 |
 | RF04 | O sistema deve permitir que o administrador cadastre as contas dos profissionais e da recepção do CT, sem autocadastro desses perfis. | Alta | BS02, BS12, BS13 | UC04 |
 | RF05 | O sistema deve permitir que o profissional defina sua disponibilidade e registre bloqueios de horário. | Alta | BS06 | UC05 |
 | RF06 | O sistema deve permitir criar um agendamento cruzando a disponibilidade de atleta(s), profissional, espaço e equipamentos em uma única reserva. | Alta | BS05, BS06, BS11 | UC06 |
@@ -73,10 +73,10 @@ Cada requisito funcional corresponde a um caso de uso do documento de Casos de U
 | ID | Categoria | Descrição |
 | -- | -- | -- |
 | RNF01 | Desempenho | A verificação de disponibilidade (UC07) deve responder em tempo hábil para não travar o fluxo de agendamento presencial na recepção. |
-| RNF02 | Segurança | Senhas devem ser armazenadas com hash (nunca em texto puro) e toda comunicação cliente-servidor deve ocorrer via HTTPS. |
+| RNF02 | Segurança | Senhas devem ser armazenadas com hash (nunca em texto puro) e toda comunicação cliente-servidor deve ocorrer via HTTPS. A API autentica por token JWT de curta duração (30 minutos), renovável por até 7 dias. |
 | RNF03 | Segurança / Privacidade | Dados de avaliação física e de saúde são tratados como dados sensíveis (LGPD) e só podem ser acessados por perfis autorizados e vinculados ao atleta. |
 | RNF04 | Conformidade legal | O cadastro de atletas menores de 18 anos deve exigir vínculo e consentimento de um responsável (ECA), com registro de data e hora do consentimento (LGPD). |
-| RNF05 | Usabilidade | Mensagens de erro relacionadas a autenticação devem ser claras porém genéricas (ex.: "e-mail ou senha incorretos"), evitando enumeração de usuários. |
+| RNF05 | Usabilidade | Mensagens de erro relacionadas a autenticação devem ser claras porém genéricas (ex.: "e-mail ou senha incorretos"), evitando enumeração de usuários inclusive para contas inativas e para pedidos de recuperação de senha. |
 | RNF06 | Auditabilidade | Cancelamentos e alterações de status não devem excluir registros; o histórico deve ser preservado para auditoria, com autor, data e hora. |
 | RNF07 | Disponibilidade | O sistema deve estar operacional durante o horário de funcionamento do CT, com baixa tolerância a indisponibilidade. |
 | RNF08 | Escalabilidade | A arquitetura deve suportar o crescimento do volume de atletas, profissionais e agendamentos sem necessidade de redesenho estrutural. |
@@ -326,3 +326,4 @@ Este documento, junto ao Protótipo de Baixa Fidelidade e ao Diagrama de Classes
 | -- | -- | -- | -- |
 | 27/09/2026 | 1.0 | Criação do documento de Levantamento de Requisitos, formalizando RF01–RF18 e RNF01–RNF10 a partir do Brainstorm, do 5W2H e dos Casos de Uso, com caso de uso, protótipo e diagramas de exemplo | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 26/10/2026 | 1.1 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação; inclusão do cadastro de serviços (UC18/RF19), pedido no MVP do enunciado; Funcionário (um por pessoa) e classe abstrata Papel, mãe de Profissional, Recepção e Administrador; Especialidade como classe; UC06 com escolha por modalidade e caixinhas de horário; aulas em grupo, lista de espera e lembretes (RF20, RF21); grade de aulas (RF22) e salas por especialidade | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 05/11/2026 | 1.2 | Autenticação por token JWT, recuperação de senha com link de uso único e resposta uniforme contra enumeração de usuários (RF01, RF03, RNF02, RNF05) | Gabriel de Souza|

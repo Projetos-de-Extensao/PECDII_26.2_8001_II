@@ -130,7 +130,7 @@ class ApiDeDisponibilidade(Base):
         self.assertEqual(self.api.post("/api/disponibilidades/", self.turno, format="json").status_code, 403)
 
     def test_sem_login_nada(self):
-        self.assertEqual(self.api.get("/api/disponibilidades/").status_code, 403)
+        self.assertEqual(self.api.get("/api/disponibilidades/").status_code, 401)
 
     def test_sobreposicao_vira_400(self):
         self.api.force_authenticate(self.nina)
