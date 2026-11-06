@@ -89,7 +89,7 @@ class ApiDeAgendamento(Base):
 
     def test_sem_login_nao_ve_nada(self):
         from rest_framework.test import APIClient
-        self.assertEqual(APIClient().get("/api/agendamentos/").status_code, 403)
+        self.assertEqual(APIClient().get("/api/agendamentos/").status_code, 401)
 
     def test_cria_pela_api(self):
         r = self.api.post("/api/agendamentos/", {"atleta": self.joao.pk, "servico": self.consulta.pk,
@@ -233,7 +233,7 @@ class Avisos(Base):
         self.assertEqual(self.api.delete(f"/api/avisos/{aviso.pk}/").status_code, 405)
 
     def test_sem_login_nada(self):
-        self.assertEqual(self.api.get("/api/avisos/").status_code, 403) 
+        self.assertEqual(self.api.get("/api/avisos/").status_code, 401) 
 class AtletaNoAgendamento(Base):
     def setUp(self):
         super().setUp()
