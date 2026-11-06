@@ -119,7 +119,7 @@ scale 1.3
 **Regras de negócio**
 
 - Credenciais inválidas retornam mensagem genérica (*"E-mail ou senha incorretos"*), sem informar qual dos dois falhou, evitando enumeração de usuários.
-- Contas inativas são bloqueadas com a mensagem *"Conta inativa. Procure a administração do CT"*.
+- Contas inativas recebem a mesma mensagem de credenciais inválidas, sem revelar que a conta existe (RNF05).
 - Após o login, o sistema aplica o controle de acesso por perfil, carregando apenas os dados permitidos.
 
 ---
@@ -457,8 +457,9 @@ A tabela a seguir associa cada tela do protótipo às operações previstas no b
 
 | Tela | Operação prevista na API | Entidades envolvidas |
 | -- | -- | -- |
-| Tela 1 — Login | `POST /auth/login` | Usuário, Perfil |
-| Tela 1b — Cadastro | `POST /usuarios` | Usuário, Perfil, Responsável |
+| Tela 1 — Login | `POST /api/token/` e `POST /api/token/refresh/` | Usuário, Perfil |
+| Tela 1 — Esqueci minha senha | `POST /api/senha/recuperar/` e `POST /api/senha/redefinir/` | Usuário |
+| Tela 1b — Cadastro | `POST /api/cadastro/` | Usuário, Atleta, Responsável, Consentimento LGPD |
 | Tela 2 — Agendamento | `GET /atletas`, `GET /servicos`, `GET /profissionais`, `GET /espacos`, `GET /equipamentos` | Atleta, Profissional, Espaço, Equipamento |
 | Tela 3 — Verificação | `POST /agendamentos/disponibilidade` | Agendamento, Bloqueio de manutenção |
 | Tela 4 — Confirmação | `POST /agendamentos` | Agendamento |
@@ -497,3 +498,4 @@ As telas aqui definidas servirão de base para o levantamento de requisitos, par
 | 01/09/26 | 1.1    | Adicionadas as telas de login, cadastro e agendamento com verificação de disponibilidade | Filipe Andrade |
 | 01/09/26 | 1.2    | Adicionados fluxo de navegação, perfis de acesso, rastreabilidade com a API e conclusão  | Filipe Andrade |
 | 26/10/2026 | 1.3 | Correção após feedback do professor: profissionais passam a ser equipe do CT cadastrada pelo administrador, sem autocadastro nem fluxo de aprovação; inclusão do cadastro de serviços (UC18/RF19), pedido no MVP do enunciado; Tela 2 com caixinhas de horário e término e espaço automáticos | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 05/11/26 | 1.4    | Rastreabilidade de login, cadastro e recuperação de senha atualizada para os endpoints implementados  | Gabriel de Souza |

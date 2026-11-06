@@ -6,54 +6,62 @@ title Diagrama de Sequencia - Autenticacao e Cadastro (UC01 a UC04)
 
 actor "Usuario / Visitante" as User
 actor "Administrador" as Admin
-boundary "Tela de Acesso / Cadastro\n(Frontend / API View)" as Boundary
-control "Controlador de Autenticacao\ne Cadastros (pessoas.cadastros)" as Control
+boundary "API de Acesso\n(/api/token/, /api/cadastro/,\n/api/senha/)" as Boundary
+control "Controladores de Autenticacao\ne Cadastros (pessoas.autenticacao /\npessoas.cadastros)" as Control
 entity "auth.User /\nFuncionario / Atleta" as Entity
 entity "Responsavel /\nConsentimentoLGPD" as LGPD
 participant "Servico de E-mail" as Mail
 
-== UC01 - Autenticar-se ==
-User -> Boundary : Informar e-mail (login) e senha
+== UC01 - Autenticar-se (login por token JWT) ==
+User -> Boundary : POST /api/token/ (email, password)
 activate Boundary
-Boundary -> Control : autenticar(username=email, password=senha)
+Boundary -> Control : TokenPorEmailSerializer.validate(email, password)
 activate Control
-Control -> Entity : verificarCredenciais(email, senha)
+Control -> Entity : buscar login (username__iexact=email) e autenticar
 activate Entity
-Entity --> Control : usuario (is_active)
+Entity --> Control : usuario (is_active) ou nenhum
 deactivate Entity
 alt Credenciais validas e conta ativa
-Control --> Boundary : Sessao / Token de acesso
-Boundary --> User : Redirecionar para painel do perfil
-else Credenciais invalidas ou conta inativa (A1)
-Control --> Boundary : Erro de autenticacao (401/403)
-Boundary --> User : Exibir mensagem de erro
+Control --> Boundary : access (30 min) e refresh (7 dias)
+Boundary --> User : 200 OK com os tokens
+else Senha errada, e-mail desconhecido ou conta inativa (A3)
+Control --> Boundary : falha de autenticacao (mesma resposta nos tres casos)
+Boundary --> User : 401 "E-mail ou senha incorretos"
 end
 deactivate Control
 deactivate Boundary
 
-== UC02 - Cadastrar-se (Atleta e Consentimento LGPD) ==
-User -> Boundary : Preencher dados, data_nascimento,\naceitou_termos e dados do responsavel (se menor)
+opt Token de acesso expirado (A4)
+User -> Boundary : POST /api/token/refresh/ (refresh)
 activate Boundary
-Boundary -> Control : cadastrar_atleta(email, nome, senha,\ndata_nascimento, aceitou_termos, responsavel)
+alt Refresh valido
+Boundary --> User : 200 OK com novo access
+else Refresh expirado ou invalido
+Boundary --> User : 401 (volta ao login)
+end
+deactivate Boundary
+end
+
+== UC02 - Cadastrar-se (Atleta ou Responsavel, com consentimento LGPD) ==
+User -> Boundary : POST /api/cadastro/ (tipo, nome, email, senha,\ndata_nascimento, aceitou_termos)
+activate Boundary
+Boundary -> Control : CadastroSerializer (valida dados e forca da senha)
 activate Control
-alt Nao aceitou termos LGPD
-Control --> Boundary : ValidationError("Obrigatorio aceitar os termos LGPD")
-Boundary --> User : Exibir exigencia de aceite (400)
-else E-mail ja cadastrado
+alt Senha fraca ou atleta sem data de nascimento
+Control --> Boundary : erro de validacao
+Boundary --> User : 400 Bad Request
+else Nao aceitou termos LGPD (E1)
+Control --> Boundary : ValidationError("Obrigatorio aceitar os termos")
+Boundary --> User : 400 Bad Request
+else E-mail ja cadastrado (A1)
 Control -> Entity : filter(username__iexact=email).exists()
 Entity --> Control : True
 Control --> Boundary : ValidationError("E-mail ja cadastrado")
-Boundary --> User : Informar e-mail duplicado (400)
-else Menor de 18 anos sem responsavel
+Boundary --> User : 400 Bad Request
+else Atleta menor de 18 anos (A2: dependente e cadastrado pelo\nresponsavel logado em /api/atletas/)
 Control --> Boundary : ValidationError("Atleta menor de idade exige responsavel")
-Boundary --> User : Solicitar dados do responsavel (400)
-else Dados validos (Transacao Atomica)
-opt Atleta menor de idade (novo responsavel)
-Control -> LGPD : Responsavel.objects.create(...)
-activate LGPD
-LGPD --> Control : responsavel
-deactivate LGPD
-end
+Boundary --> User : 400 Bad Request (transacao desfeita)
+else Dados validos (transacao atomica)
 Control -> Entity : User.objects.create_user(username=email, ...)
 activate Entity
 Entity --> Control : usuario
@@ -62,30 +70,49 @@ Control -> LGPD : ConsentimentoLGPD.objects.create(usuario, versao_termos)
 activate LGPD
 LGPD --> Control : consentimento
 deactivate LGPD
-Control -> Entity : Atleta.objects.create(usuario, data_nascimento, responsavel)
-activate Entity
-Entity --> Control : atleta
-deactivate Entity
-Control --> Boundary : Atleta criado (201 Created)
-Boundary --> User : Confirmar cadastro realizado
+alt tipo = atleta
+Control -> Entity : Atleta.objects.create(usuario, data_nascimento)
+else tipo = responsavel
+Control -> LGPD : Responsavel.objects.create(usuario, cpf, telefone)
+end
+Control --> Boundary : cadastro criado
+Boundary --> User : 201 Created (id, tipo, nome_completo, email)
 end
 deactivate Control
 deactivate Boundary
 
-== UC03 - Recuperar Senha ==
-User -> Boundary : Solicitar recuperacao de senha (e-mail)
+== UC03 - Recuperar Senha (link de uso unico, valido por 1 hora) ==
+User -> Boundary : POST /api/senha/recuperar/ (email)
 activate Boundary
-Boundary -> Control : solicitarRedefinicaoSenha(email)
+Boundary -> Control : SolicitarRecuperacaoView (limite de 5 pedidos por hora)
 activate Control
-Control -> Entity : buscarPorEmail(email)
-Entity --> Control : usuario
+Control -> Entity : buscar usuario ativo por e-mail
+Entity --> Control : usuario ou nenhum
 opt Usuario encontrado e ativo
-Control -> Mail : enviarLinkRedefinicao(email, token)
-Mail --> User : E-mail com link temporario
+Control -> Control : gerar uid e token (default_token_generator)
+Control -> Mail : enviar link com uid e token
+Mail --> User : E-mail com link de redefinicao
 end
-Control --> Boundary : Confirmacao de envio
+Control --> Boundary : mesma mensagem, exista o e-mail ou nao (A5)
+Boundary --> User : 200 OK "Se o e-mail estiver cadastrado, enviaremos um link"
 deactivate Control
-Boundary --> User : Informar instrucoes enviadas por e-mail
+deactivate Boundary
+
+User -> Boundary : POST /api/senha/redefinir/ (uid, token, senha)
+activate Boundary
+Boundary -> Control : RedefinirSenhaView
+activate Control
+Control -> Entity : buscar usuario pelo uid e conferir o token
+alt Link invalido, expirado ou ja usado (E2)
+Control --> Boundary : ValidationError("Link invalido ou expirado")
+Boundary --> User : 400 Bad Request
+else Token valido
+Control -> Control : validar forca da senha
+Control -> Entity : set_password(senha) (invalida o link)
+Control --> Boundary : senha alterada
+Boundary --> User : 200 OK
+end
+deactivate Control
 deactivate Boundary
 
 == UC04 - Cadastrar Profissional ou Recepcao ==
