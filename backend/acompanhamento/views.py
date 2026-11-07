@@ -1,25 +1,40 @@
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from agenda.perfis import profissional_de
+from pessoas.models import Atleta
 from pkzlab.permissoes import SoAdminAltera
 
+from .indicadores import evolucao, relatorio_de_desempenho
 from .models import AvaliacaoFisica, Exercicio, PlanoTreino
-from .permissoes import EquipeTecnicaRegistra
-from .serializers import AvaliacaoFisicaSerializer, ExercicioSerializer, PlanoTreinoSerializer
+from .permissoes import EquipeTecnicaRegistra, da_equipe_tecnica
+from .serializers import (AvaliacaoFisicaSerializer, ExercicioSerializer, FiltroRelatorioSerializer,
+                          PeriodoSerializer, PlanoTreinoSerializer)
+
+
+def do_visivel(qs, usuario, campo=""):
+    # a equipe do CT vê todos; o atleta, os dele; o responsável, os dos dependentes (UC12, UC13 e UC14)
+    # campo: o caminho até o Atleta ("atleta" numa avaliação, "" no próprio Atleta)
+    if usuario.is_staff or hasattr(usuario, "funcionario"):
+        return qs
+    prefixo = f"{campo}__" if campo else ""
+    pode_ver = Q(pk__in=[])
+    if hasattr(usuario, "atleta"):
+        pode_ver |= Q(**{f"{prefixo}pk": usuario.atleta.pk})
+    if hasattr(usuario, "responsavel"):
+        pode_ver |= Q(**{f"{prefixo}responsavel": usuario.responsavel})
+    return qs.filter(pode_ver)
 
 
 def do_proprio_atleta(qs, usuario):
-    # a equipe do CT vê todos; o atleta, os dele; o responsável, os dos dependentes (UC12 e UC13, pós-condições)
-    if usuario.is_staff or hasattr(usuario, "funcionario"):
-        return qs
-    pode_ver = Q(pk__in=[])
-    if hasattr(usuario, "atleta"):
-        pode_ver |= Q(atleta=usuario.atleta)
-    if hasattr(usuario, "responsavel"):
-        pode_ver |= Q(atleta__responsavel=usuario.responsavel)
-    return qs.filter(pode_ver)
+    return do_visivel(qs, usuario, "atleta")
 
 
 def filtrar_por_atleta(qs, request):
@@ -68,3 +83,47 @@ class PlanoTreinoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         if ativo in ("true", "false"):
             qs = qs.filter(ativo=(ativo == "true"))
         return qs
+
+
+def _periodo(serializer_class, request):
+    params = {chave: request.query_params.get(chave) for chave in ("de", "ate", "profissional")
+              if request.query_params.get(chave)}
+    if request.query_params.getlist("atleta"):
+        params["atleta"] = request.query_params.getlist("atleta")
+    filtro = serializer_class(data=params)
+    filtro.is_valid(raise_exception=True)
+    return filtro.validated_data
+
+
+class EvolucaoDoAtletaView(APIView):
+    # UC14: o próprio atleta, o responsável dele e a equipe do CT
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(parameters=[OpenApiParameter("de", OpenApiTypes.DATE), OpenApiParameter("ate", OpenApiTypes.DATE)],
+                   responses=OpenApiTypes.OBJECT, summary="Evolução do atleta: avaliações, frequência e planos (UC14)")
+    def get(self, request, pk):
+        atleta = get_object_or_404(do_visivel(Atleta.objects.all(), request.user), pk=pk)
+        periodo = _periodo(PeriodoSerializer, request)
+        return Response(evolucao(atleta, periodo.get("de"), periodo.get("ate")))
+
+
+class RelatorioDeDesempenhoView(APIView):
+    # UC15: profissional (só o que ele avaliou e atendeu) e administração (tudo, ou filtrando por profissional)
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(parameters=[
+        OpenApiParameter("de", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("ate", OpenApiTypes.DATE, required=True),
+        OpenApiParameter("atleta", int, many=True, description="Um ou mais atletas (repita o parâmetro)."),
+        OpenApiParameter("profissional", int, description="Só a administração usa; o profissional vê só o seu."),
+    ], responses=OpenApiTypes.OBJECT, summary="Relatório de desempenho por período (UC15)")
+    def get(self, request):
+        usuario = request.user
+        if not da_equipe_tecnica(usuario):
+            raise PermissionDenied("Relatórios são só para profissionais e administração.")
+        filtro = _periodo(FiltroRelatorioSerializer, request)
+        if usuario.is_staff:
+            profissional = filtro.get("profissional")
+        else:
+            profissional = profissional_de(usuario)
+        return Response(relatorio_de_desempenho(filtro["de"], filtro["ate"], filtro.get("atleta"), profissional))

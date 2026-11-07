@@ -78,3 +78,21 @@ class PlanoTreinoSerializer(serializers.ModelSerializer):
             return PlanoTreino.prescrever(**validated_data)
         except DjangoValidationError as e:
             raise erro_da_api(e)
+
+
+class PeriodoSerializer(serializers.Serializer):
+    de = serializers.DateField(required=False)
+    ate = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        if attrs.get("de") and attrs.get("ate") and attrs["ate"] < attrs["de"]:
+            raise serializers.ValidationError({"ate": "O fim do período precisa ser depois do início."})
+        return attrs
+
+
+class FiltroRelatorioSerializer(PeriodoSerializer):
+    # UC15: o período é obrigatório no relatório
+    de = serializers.DateField()
+    ate = serializers.DateField()
+    atleta = serializers.ListField(child=serializers.IntegerField(), required=False)
+    profissional = serializers.IntegerField(required=False)

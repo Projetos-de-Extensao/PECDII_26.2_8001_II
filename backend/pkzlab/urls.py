@@ -4,7 +4,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from rest_framework.routers import DefaultRouter
 from pessoas.autenticacao import CadastroView, RedefinirSenhaView, SolicitarRecuperacaoView, TokenPorEmailView
 from rest_framework_simplejwt.views import TokenRefreshView
-from acompanhamento.views import AvaliacaoFisicaViewSet, ExercicioViewSet, PlanoTreinoViewSet
+from acompanhamento.views import (AvaliacaoFisicaViewSet, EvolucaoDoAtletaView, ExercicioViewSet,
+                                  PlanoTreinoViewSet, RelatorioDeDesempenhoView)
 from agenda.views import (AgendamentoViewSet, AtendimentoViewSet, AvisoViewSet, BloqueioViewSet, DisponibilidadeViewSet,
                           HorariosLivresViewSet)
 from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
@@ -35,6 +36,8 @@ urlpatterns = [
     path('api/cadastro/', CadastroView.as_view(), name='cadastro'),
     path('api/senha/recuperar/', SolicitarRecuperacaoView.as_view(), name='senha_recuperar'),
     path('api/senha/redefinir/', RedefinirSenhaView.as_view(), name='senha_redefinir'),
+    path('api/atletas/<int:pk>/evolucao/', EvolucaoDoAtletaView.as_view(), name='evolucao_do_atleta'),
+    path('api/relatorios/desempenho/', RelatorioDeDesempenhoView.as_view(), name='relatorio_desempenho'),
     path('api/', include(router.urls)),
     path('api/auth/', include('rest_framework.urls')),  # entrar/sair na API pelo navegador
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
