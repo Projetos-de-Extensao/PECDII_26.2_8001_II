@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,12 +12,12 @@ from django.db.models import Q
 
 from pkzlab.permissoes import SoAdminAltera
 
-from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
 from .permissoes import ProfissionalMantemAPropria
-from .serializers import (AgendamentoSerializer, AvisoSerializer, BloqueioSerializer, CancelarSerializer,
-                          DisponibilidadeSerializer, HorariosLivresQuerySerializer, ReagendarSerializer,
-                          erro_da_api)
-from .perfis import profissional_de, ve_a_agenda_toda
+from .serializers import (AgendamentoSerializer, AtendimentoSerializer, AvisoSerializer, BloqueioSerializer,
+                          CancelarSerializer, DisponibilidadeSerializer, HorariosLivresQuerySerializer,
+                          ReagendarSerializer, RegistrarAtendimentoSerializer, erro_da_api)
+from .perfis import pode_registrar_atendimento, profissional_de, ve_a_agenda_toda
 
 
 @extend_schema(parameters=[OpenApiParameter("status", str, enum=Agendamento.Status.values)])
@@ -68,6 +69,50 @@ class AgendamentoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         except DjangoValidationError as e:
             raise erro_da_api(e)
         return Response(AgendamentoSerializer(novo).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=RegistrarAtendimentoSerializer, responses={201: AtendimentoSerializer},
+                   summary="Registra presença, falta ou cancelamento do atendimento (UC11)")
+    @action(detail=True, methods=["post"], url_path="atendimento")
+    def registrar_atendimento(self, request, pk=None):
+        agendamento = self.get_object()
+        if not pode_registrar_atendimento(request.user, agendamento):
+            raise PermissionDenied("Só o profissional do agendamento ou a administração registra o atendimento.")
+        dados = RegistrarAtendimentoSerializer(data=request.data)
+        dados.is_valid(raise_exception=True)
+        try:
+            atendimento = Atendimento.registrar(agendamento, autor=request.user, **dados.validated_data)
+        except DjangoValidationError as e:
+            raise erro_da_api(e)
+        return Response(AtendimentoSerializer(atendimento).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(parameters=[OpenApiParameter("status", str, enum=Atendimento.Status.values),
+                           OpenApiParameter("atleta", int, description="Só os atendimentos deste atleta.")])
+class AtendimentoViewSet(viewsets.ReadOnlyModelViewSet):
+    # UC11 e UC14: histórico de atendimentos. Cada um vê o mesmo recorte que vê da agenda (UC10).
+    queryset = Atendimento.objects.select_related("agendamento", "registrado_por")
+    serializer_class = AtendimentoSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        usuario = self.request.user
+        if not ve_a_agenda_toda(usuario):
+            pode_ver = Q(pk__in=[])
+            if profissional_de(usuario):
+                pode_ver |= Q(agendamento__profissional=profissional_de(usuario))
+            if getattr(usuario, "atleta", None):
+                pode_ver |= Q(agendamento__atleta=usuario.atleta)
+            if getattr(usuario, "responsavel", None):
+                pode_ver |= Q(agendamento__atleta__responsavel=usuario.responsavel)
+            qs = qs.filter(pode_ver)
+        if s := self.request.query_params.get("status"):
+            qs = qs.filter(status=s)
+        atleta = self.request.query_params.get("atleta")
+        if atleta and atleta.isdigit():
+            qs = qs.filter(agendamento__atleta=atleta)
+        return qs
+
+
 @extend_schema(parameters=[OpenApiParameter("lido", bool, description="false: só os que ainda não foram lidos.")])
 class AvisoViewSet(viewsets.ReadOnlyModelViewSet):
     # UC20: cada pessoa vê só os próprios avisos e marca como lido

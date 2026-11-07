@@ -243,3 +243,51 @@ class Bloqueio(models.Model):
 
     def __str__(self):
         return f"{self.alvo} bloqueado de {self.inicio:%d/%m %H:%M} a {self.fim:%d/%m %H:%M}"
+
+class Atendimento(models.Model):
+    # UC11: o que aconteceu no horário marcado. Um registro por agendamento, gravado pelo profissional
+    # que atendeu (ou pela administração) depois que o horário começou. Não se edita nem se apaga.
+    class Status(models.TextChoices):
+        PRESENCA = "PRESENCA", "Presença"
+        FALTA = "FALTA", "Falta"
+        CANCELAMENTO = "CANCELAMENTO", "Cancelamento"
+
+    agendamento = models.OneToOneField(Agendamento, on_delete=models.PROTECT, related_name="atendimento")
+    status = models.CharField(max_length=12, choices=Status.choices)
+    justificativa = models.TextField(blank=True, help_text="Obrigatória para falta e cancelamento.")
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                       related_name="atendimentos_registrados")
+    registrado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-registrado_em"]
+
+    def clean(self, agora=None):
+        erros = {}
+        if self.status in (self.Status.FALTA, self.Status.CANCELAMENTO) and not self.justificativa.strip():
+            erros["justificativa"] = "Informe a justificativa para falta ou cancelamento."
+        if self.agendamento_id:
+            if self.agendamento.status != Agendamento.Status.AGENDADO:
+                erros["agendamento"] = "Só dá para registrar o atendimento de um agendamento com status Agendado."
+            elif not self.pk and Atendimento.objects.filter(agendamento_id=self.agendamento_id).exists():
+                erros["agendamento"] = "Este agendamento já tem atendimento registrado."
+            elif self.agendamento.inicio > (agora or timezone.now()):
+                erros["agendamento"] = "O atendimento só pode ser registrado depois que o horário começar."
+        if erros:
+            raise ValidationError(erros)
+
+    @classmethod
+    @transaction.atomic
+    def registrar(cls, agendamento, status, autor, justificativa="", agora=None):
+        atendimento = cls(agendamento=agendamento, status=status, justificativa=justificativa, registrado_por=autor)
+        atendimento.clean(agora)
+        atendimento.save()
+        if status == cls.Status.CANCELAMENTO:
+            # UC11 A1: o agendamento sai da agenda, liberando sala, profissional e equipamentos
+            agendamento.status = Agendamento.Status.CANCELADO
+            agendamento.justificativa = justificativa
+            agendamento.save(update_fields=["status", "justificativa"])
+        return atendimento
+
+    def __str__(self):
+        return f"{self.agendamento.protocolo} - {self.get_status_display()}"

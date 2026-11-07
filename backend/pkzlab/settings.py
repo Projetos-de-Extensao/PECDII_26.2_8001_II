@@ -153,6 +153,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],  # a documentação é aberta; os dados não
+    # dois campos "status" com opções diferentes: cada um ganha seu nome na documentação
+    "ENUM_NAME_OVERRIDES": {
+        "StatusAgendamentoEnum": "agenda.models.Agendamento.Status",
+        "StatusAtendimentoEnum": "agenda.models.Atendimento.Status",
+    },
 }
 
 # Nos testes automáticos (python manage.py test) as senhas usam um algoritmo rápido,

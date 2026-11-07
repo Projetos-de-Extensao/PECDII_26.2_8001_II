@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from estrutura.models import Servico
 
-from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
 from .perfis import pode_agendar_para, profissional_de
 
 def erro_da_api(erro):
@@ -50,6 +50,18 @@ class CancelarSerializer(serializers.Serializer):
 
 class ReagendarSerializer(serializers.Serializer):
     inicio = serializers.DateTimeField()
+
+
+class AtendimentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Atendimento
+        fields = ["id", "agendamento", "status", "justificativa", "registrado_por", "registrado_em"]
+        read_only_fields = fields  # quem grava é a ação registrar_atendimento do agendamento
+
+
+class RegistrarAtendimentoSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Atendimento.Status.choices)
+    justificativa = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class HorariosLivresQuerySerializer(serializers.Serializer):

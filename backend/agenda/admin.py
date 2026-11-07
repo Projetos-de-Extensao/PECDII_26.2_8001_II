@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
 
 
 @admin.register(Agendamento)
@@ -46,3 +46,20 @@ class BloqueioAdmin(admin.ModelAdmin):
             self.message_user(request, "Atenção: este bloqueio atinge agendamentos já marcados: "
                                        + ", ".join(protocolos) + ". Reagende ou cancele cada um.",
                               messages.WARNING)
+
+
+@admin.register(Atendimento)
+class AtendimentoAdmin(admin.ModelAdmin):
+    # registro de presença ou falta (UC11): só leitura no painel, quem grava é a API
+    list_display = ("agendamento", "status", "registrado_por", "registrado_em")
+    list_filter = ("status",)
+    search_fields = ("agendamento__protocolo",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
