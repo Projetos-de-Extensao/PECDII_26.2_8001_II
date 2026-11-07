@@ -26,7 +26,7 @@ Site: http://127.0.0.1:8000 · Painel do administrador: http://127.0.0.1:8000/ad
 
 ```bash
 python manage.py test estrutura pessoas agenda   # testes automáticos
-python manage.py rotinas_da_agenda               # vence vagas não confirmadas e envia lembretes
+python manage.py rotinas_da_agenda               # envia os lembretes de 24 horas (rodar a cada 5 min no servidor)
 ```
 
 Em produção, a rotina roda sozinha a cada 5 minutos (cron do servidor) e o banco é PostgreSQL.
