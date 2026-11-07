@@ -2,53 +2,43 @@
 id: iteração5
 title: Iteração 5
 ---
-# Iteração 5 (10/10/24 à 23/10/2024)
+# Iteração 5 (10/10/2026 à 23/10/2026)
+
+**Foco:** entrega da fase de documentação para avaliação do professor.
 
 ## Planejamento de Iteração
 
-#### Presentes na reunião: XXXXX
+#### Presentes na reunião: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ### Lista de Tarefas da Iteração
 
-| Tarefa                                                                                       | Responsabilidade |
-| -------------------------------------------------------------------------------------------- | ---------------- |
-| Decidir o nome o projeto.                                                                    | Todos            |
-| Criar o repositório nos padrões (Organizar wiki).                                          | Matheus          |
-| Criar issues no GitHub / ZenHub                                                              | Renan            |
-| Configuração do grupo do Telegram(configurar bot).                                         | Moacir           |
-| Estudar e escolher as metodologias.                                                          | Todos            |
-| [Documento de visão](https://github.com/xxx/xxx.md)                                            | XXX e XXXXX      |
-| Elaborar[5w2H](https://github.com/xxx/xxx.md)                                                   | XXX e XXXXX      |
-| [Mapas Mentais](https://github.com/xxx/xxx.md)                                                  | XXX e XXXXX      |
-| [Brainstorming](https://github.com/UnBArqDsw/2020.1_G7_TCM/blob/master/docs/base/Brainstorm.md) | Todos            |
-| [Entrevistas](https://github.com/xxx/xxx.md)                                                    | XXX e XXXXX      |
-| [Prototipação.](https://github.com/xxx/xxx.md)                                                | XXX e XXXXX      |
+| Tarefa | Responsabilidade | Situação |
+| -- | -- | -- |
+| Entrega dos documentos de Iniciação e Elaboração para avaliação | Todos | Concluída |
+| Preparar a transição da documentação para a implementação em Django | Todos | Concluída |
 
 ## Sprint Retrospective/Review Meeting
 
-#### Presentes na reunião: XXXX
+### Dívidas da Iteração
 
-### Dividas da Iteração
+- Aguardando o feedback do professor sobre os documentos.
 
 ### Riscos Encontrados
 
-- Nenhum: Plano de gerenciamento de riscos não implementado.
+- Pressupostos não validados (como o autocadastro de profissionais) poderiam ser reprovados na avaliação.
 
 ### Pontos Positivos
 
-![pontos positivos](../assets/Iterações/S1-positivos.png)
+- Documentação completa antes de qualquer linha de código, como pede o critério de avaliação.
 
 ### Pontos Negativos
 
-![pontos negativos](../assets/Iterações/S1-negativos.png)
+- A implementação começou só no fim da iteração seguinte.
 
 ### O que podemos melhorar?
 
-- Ter mais foco na reuniões para evitar o desperdício de tempo.
-- A equipe deve ter mais autonomia em relação à falta de membros.
-- Podemos utilizar algo ferramenta de timebox para maior efetividade nas reuniões, sugestão: https://timebox.cedrotech.com/
+- Começar a implementação em paralelo ao fechamento dos documentos.
 
 ### Ferramentas utilizadas
 
-- Reunião: [Hangouts](https://hangouts.google.com/)
-- Colheita dos pontos: [Mentimeter](https://www.mentimeter.com/)
+- GitHub e MkDocs Material.

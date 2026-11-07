@@ -2,53 +2,45 @@
 id: iteração3
 title: Iteração 3
 ---
-# Iteração 3 (12/09/24 à 25/09/2024)
+# Iteração 3 (12/09/2026 à 25/09/2026)
+
+**Foco:** levantar requisitos e modelar o comportamento do sistema.
 
 ## Planejamento de Iteração
 
-#### Presentes na reunião: XXXXX
+#### Presentes na reunião: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ### Lista de Tarefas da Iteração
 
-| Tarefa                                                                                       | Responsabilidade |
-| -------------------------------------------------------------------------------------------- | ---------------- |
-| Decidir o nome o projeto.                                                                    | Todos            |
-| Criar o repositório nos padrões (Organizar wiki).                                          | Matheus          |
-| Criar issues no GitHub / ZenHub                                                              | Renan            |
-| Configuração do grupo do Telegram(configurar bot).                                         | Moacir           |
-| Estudar e escolher as metodologias.                                                          | Todos            |
-| [Documento de visão](https://github.com/xxx/xxx.md)                                            | XXX e XXXXX      |
-| Elaborar[5w2H](https://github.com/xxx/xxx.md)                                                   | XXX e XXXXX      |
-| [Mapas Mentais](https://github.com/xxx/xxx.md)                                                  | XXX e XXXXX      |
-| [Brainstorming](https://github.com/UnBArqDsw/2020.1_G7_TCM/blob/master/docs/base/Brainstorm.md) | Todos            |
-| [Entrevistas](https://github.com/xxx/xxx.md)                                                    | XXX e XXXXX      |
-| [Prototipação.](https://github.com/xxx/xxx.md)                                                | XXX e XXXXX      |
+| Tarefa | Responsabilidade | Situação |
+| -- | -- | -- |
+| [Brainstorm](../Iniciacao/Brainstorm.md): requisitos BS01 a BS15 | Todos | Concluída em 14/09 |
+| [Casos de uso](../Elaboracao/casos_de_uso.md): atores, fluxos e diagramas (visão geral + quatro detalhados) | Todos | Concluída em 23/09 |
+| [Diagrama de classes](../Elaboracao/diagrama_de_classes.md) conceitual com rastreabilidade | Todos | Concluída em 25/09 |
 
 ## Sprint Retrospective/Review Meeting
 
-#### Presentes na reunião: XXXX
+### Dívidas da Iteração
 
-### Dividas da Iteração
+- BS16 (integração com sistema financeiro externo) sem fluxo definido.
+- Diagrama de classes de especificação (com atributos e métodos) ainda não feito.
 
 ### Riscos Encontrados
 
-- Nenhum: Plano de gerenciamento de riscos não implementado.
+- Diagrama de casos de uso com muitas linhas cruzadas. Mitigação: dividido em uma visão geral e quatro diagramas por área.
 
 ### Pontos Positivos
 
-![pontos positivos](../assets/Iterações/S1-positivos.png)
+- Rastreabilidade entre requisitos, casos de uso e classes.
 
 ### Pontos Negativos
 
-![pontos negativos](../assets/Iterações/S1-negativos.png)
+- Sistema financeiro de destino ainda indefinido.
 
 ### O que podemos melhorar?
 
-- Ter mais foco na reuniões para evitar o desperdício de tempo.
-- A equipe deve ter mais autonomia em relação à falta de membros.
-- Podemos utilizar algo ferramenta de timebox para maior efetividade nas reuniões, sugestão: https://timebox.cedrotech.com/
+- Definir com o PKZ LAB qual sistema financeiro será integrado.
 
 ### Ferramentas utilizadas
 
-- Reunião: [Hangouts](https://hangouts.google.com/)
-- Colheita dos pontos: [Mentimeter](https://www.mentimeter.com/)
+- GitHub, MkDocs Material e PlantUML.
