@@ -17,8 +17,8 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
         fields = ["id", "protocolo","atleta", "servico", "profissional", "espaco", "inicio", "fim", "status",
-                  "justificativa", "substitui", "criado_em", "equipamentos"]
-        read_only_fields = ["status", "justificativa", "substitui"]
+                  "justificativa", "substitui", "criado_em", "equipamentos", "lembrete_enviado_em"]
+        read_only_fields = ["status", "justificativa", "substitui", "lembrete_enviado_em"]
 
     def validate(self, attrs):
         # UC06: atleta marca para si, responsável para o dependente, equipe para qualquer um
