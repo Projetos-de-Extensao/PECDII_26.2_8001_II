@@ -12,11 +12,12 @@ from django.db.models import Q
 
 from pkzlab.permissoes import SoAdminAltera
 
-from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
 from .permissoes import ProfissionalMantemAPropria
-from .serializers import (AgendamentoSerializer, AtendimentoSerializer, AvisoSerializer, BloqueioSerializer,
-                          CancelarSerializer, DisponibilidadeSerializer, HorariosLivresQuerySerializer,
-                          ReagendarSerializer, RegistrarAtendimentoSerializer, erro_da_api)
+from .serializers import (AgendamentoSerializer, AtendimentoSerializer, AulaSerializer, AvisoSerializer,
+                          BloqueioSerializer, CancelarSerializer, DisponibilidadeSerializer,
+                          HorariosLivresQuerySerializer, InscricaoSerializer, ReagendarSerializer,
+                          RegistrarAtendimentoSerializer, erro_da_api)
 from .perfis import pode_registrar_atendimento, profissional_de, ve_a_agenda_toda
 
 
@@ -114,6 +115,36 @@ class AtendimentoViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @extend_schema(parameters=[OpenApiParameter("lido", bool, description="false: só os que ainda não foram lidos.")])
+class AulaViewSet(viewsets.ModelViewSet):
+    queryset = Aula.objects.select_related("servico", "profissional__funcionario__usuario", "espaco")
+    serializer_class = AulaSerializer
+    permission_classes = [IsAuthenticated, SoAdminAltera]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        profissional = self.request.query_params.get("profissional")
+        if profissional and profissional.isdigit():
+            qs = qs.filter(profissional=profissional)
+        return qs
+
+
+class InscricaoViewSet(viewsets.ModelViewSet):
+    queryset = Inscricao.objects.select_related("aula__servico", "aula__profissional__funcionario__usuario",
+                                              "aula__espaco", "atleta__usuario")
+    serializer_class = InscricaoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        usuario = self.request.user
+        if not usuario.is_staff and not profissional_de(usuario):
+            qs = qs.filter(atleta__usuario_id=usuario.pk)
+        profissional = self.request.query_params.get("profissional")
+        if profissional and profissional.isdigit():
+            qs = qs.filter(aula__profissional=profissional)
+        return qs
+
+
 class AvisoViewSet(viewsets.ReadOnlyModelViewSet):
     # UC20: cada pessoa vê só os próprios avisos e marca como lido
     queryset = Aviso.objects.all()

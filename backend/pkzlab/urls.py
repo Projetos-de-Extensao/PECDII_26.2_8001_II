@@ -4,10 +4,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from rest_framework.routers import DefaultRouter
 from pessoas.autenticacao import CadastroView, RedefinirSenhaView, SolicitarRecuperacaoView, TokenPorEmailView
 from rest_framework_simplejwt.views import TokenRefreshView
+from agenda.views import (AgendamentoViewSet, AtendimentoViewSet, AulaViewSet, AvisoViewSet, BloqueioViewSet,
+                          DisponibilidadeViewSet, HorariosLivresViewSet, InscricaoViewSet)
 from acompanhamento.views import (AvaliacaoFisicaViewSet, EvolucaoDoAtletaView, ExercicioViewSet,
                                   PlanoTreinoViewSet, RelatorioDeDesempenhoView)
-from agenda.views import (AgendamentoViewSet, AtendimentoViewSet, AvisoViewSet, BloqueioViewSet, DisponibilidadeViewSet,
-                          HorariosLivresViewSet)
 from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
 from pessoas.views import AtletaViewSet, ProfissionalViewSet, ResponsavelViewSet
 
@@ -20,6 +20,8 @@ router.register("profissionais", ProfissionalViewSet)
 router.register("atletas", AtletaViewSet)
 router.register("responsaveis", ResponsavelViewSet)
 router.register("agendamentos", AgendamentoViewSet)
+router.register("aulas", AulaViewSet)
+router.register("inscricoes", InscricaoViewSet)
 router.register("atendimentos", AtendimentoViewSet)
 router.register("avisos", AvisoViewSet)
 router.register("disponibilidades", DisponibilidadeViewSet)
