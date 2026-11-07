@@ -153,6 +153,7 @@ class HorariosLivresViewSet(viewsets.GenericViewSet):
                         "profissional": disponibilidade.profissional_id,
                         "espaco": espaco.pk,
                     })
+                    break  # UC06: a sala é escolhida automaticamente, basta a primeira livre
                 inicio += timedelta(minutes=30)
 
         opcoes.sort(key=lambda opcao: (opcao["inicio"], opcao["profissional"], opcao["espaco"]))
