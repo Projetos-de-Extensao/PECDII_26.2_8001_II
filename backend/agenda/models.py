@@ -6,12 +6,20 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 
-from estrutura.models import Espaco, Servico,Equipamento
+from estrutura.models import Configuracao, Espaco, Servico,Equipamento
 from pessoas.models import Profissional,Atleta
 
 
 def novo_protocolo():
     return uuid.uuid4().hex[:10].upper()
+
+
+def quem_avisar(atleta):
+    # o atleta e, se ele tiver responsável (menor de idade), o responsável também
+    usuarios = [atleta.usuario]
+    if atleta.responsavel_id:
+        usuarios.append(atleta.responsavel.usuario)
+    return usuarios
 
 
 class Aula(models.Model):
@@ -81,6 +89,8 @@ class Aula(models.Model):
         usados = self.agendamentos.filter(status=Agendamento.Status.AGENDADO).count()
         usados += sum(1 for inscricao in self.inscricoes.filter(status=Inscricao.Status.CONFIRMADA)
                       if not inscricao.agendamento_id or inscricao.agendamento.aula_id != self.pk)
+        # UC19: vaga oferecida a quem estava na lista de espera fica guardada até ele responder
+        usados += ListaEspera.objects.filter(status=ListaEspera.Status.OFERECIDA, vaga__aula_id=self.pk).count()
         return max(total - usados, 0)
 
     @property
@@ -165,6 +175,13 @@ class Agendamento(models.Model):
                                                    inicio__lt=fim, fim__gt=self.inicio)
             if self.pk:
                 conflitos = conflitos.exclude(pk=self.pk)
+            # UC19: horário individual oferecido a quem estava na lista de espera fica guardado para ele
+            guardadas = ListaEspera.objects.filter(status=ListaEspera.Status.OFERECIDA, vaga__aula__isnull=True,
+                                                   vaga__inicio__lt=fim, vaga__fim__gt=self.inicio)
+            if self.atleta_id:
+                guardadas = guardadas.exclude(atleta_id=self.atleta_id)
+            # colegas da mesma turma não são conflito de profissional nem de sala: o limite da aula são as vagas
+            conflitos_de_agenda = conflitos.exclude(aula_id=self.aula_id) if self.aula_id else conflitos
 
             if self.profissional_id:
                 if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
@@ -174,8 +191,10 @@ class Agendamento(models.Model):
                     hora_inicio__lte=inicio_local.time(), hora_fim__gte=fim_local.time()).exists())
                 if not turno:
                     adicionar_erro("profissional", "O horário está fora da disponibilidade do profissional.")
-                if conflitos.filter(profissional_id=self.profissional_id).exists():
+                if conflitos_de_agenda.filter(profissional_id=self.profissional_id).exists():
                     adicionar_erro("profissional", "O profissional já tem um agendamento nesse horário.")
+                if guardadas.filter(vaga__profissional_id=self.profissional_id).exists():
+                    adicionar_erro("profissional", "Este horário está guardado para quem estava na lista de espera.")
                 if Bloqueio.objects.filter(profissional_id=self.profissional_id,
                                            inicio__lt=fim, fim__gt=self.inicio).exists():
                     adicionar_erro("profissional", "O profissional está bloqueado nesse horário.")
@@ -184,7 +203,8 @@ class Agendamento(models.Model):
                 adicionar_erro("atleta", "O atleta já tem um agendamento nesse horário.")
 
             if self.espaco_id:
-                ocupacao = conflitos.filter(espaco_id=self.espaco_id).count()
+                ocupacao = (conflitos_de_agenda.filter(espaco_id=self.espaco_id).count()
+                            + guardadas.filter(vaga__espaco_id=self.espaco_id).count())
                 if ocupacao >= self.espaco.capacidade:
                     adicionar_erro("espaco", "A sala já atingiu sua capacidade nesse horário.")
                 if Bloqueio.objects.filter(espaco_id=self.espaco_id,
@@ -227,6 +247,7 @@ class Agendamento(models.Model):
         self.save(update_fields=["status", "justificativa"])
         Aviso.avisar(self.profissional.funcionario.usuario,
                      f"Atendimento {self.protocolo} de {self.inicio:%d/%m às %H:%M} foi cancelado: {justificativa}")
+        ListaEspera.oferecer_vaga(self)  # UC19: a vaga liberada vai para o primeiro da fila
 
     @transaction.atomic
     def reagendar(self, novo_inicio):
@@ -245,11 +266,7 @@ class Agendamento(models.Model):
     # ---------------------------------------------------------------- UC20: lembrete 24 horas antes
 
     def quem_recebe_avisos(self):
-        # o atleta e, se ele tiver responsável (menor de idade), o responsável também
-        usuarios = [self.atleta.usuario]
-        if self.atleta.responsavel_id:
-            usuarios.append(self.atleta.responsavel.usuario)
-        return usuarios
+        return quem_avisar(self.atleta)
 
     def enviar_lembrete(self):
         quando = timezone.localtime(self.inicio)
@@ -311,6 +328,190 @@ class Inscricao(models.Model):
 
     def __str__(self):
         return f"{self.atleta} -> {self.aula}"
+
+
+class ListaEspera(models.Model):
+    # UC19: fila de quem quer um horário ocupado (atendimento individual) ou uma vaga numa turma lotada (aula).
+    # Quando alguém cancela, a vaga é oferecida ao primeiro da fila, que tem um prazo para confirmar.
+    class Status(models.TextChoices):
+        AGUARDANDO = "AGUARDANDO", "Aguardando vaga"
+        OFERECIDA = "OFERECIDA", "Vaga oferecida, aguardando confirmação"
+        CONFIRMADA = "CONFIRMADA", "Confirmada"
+        RECUSADA = "RECUSADA", "Recusada"
+        VENCIDA = "VENCIDA", "Prazo vencido"
+        SAIU = "SAIU", "Saiu da lista"
+
+    atleta = models.ForeignKey(Atleta, on_delete=models.PROTECT, related_name="esperas")
+    servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="esperas")
+    profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="esperas")
+    aula = models.ForeignKey(Aula, null=True, blank=True, on_delete=models.PROTECT, related_name="esperas",
+                             help_text="Preenchido quando a espera é por uma vaga numa aula em grupo.")
+    inicio = models.DateTimeField(help_text="O horário que o atleta quer.")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.AGUARDANDO)
+    vaga = models.ForeignKey(Agendamento, null=True, blank=True, editable=False, on_delete=models.PROTECT,
+                             related_name="ofertas_da_lista",
+                             help_text="O agendamento cancelado cuja vaga foi oferecida.")
+    prazo = models.DateTimeField(null=True, blank=True, editable=False,
+                                 help_text="Até quando dá para confirmar a vaga oferecida.")
+    agendamento = models.OneToOneField(Agendamento, null=True, blank=True, editable=False,
+                                       on_delete=models.PROTECT, related_name="veio_da_lista",
+                                       help_text="O agendamento criado quando o atleta confirmou a vaga.")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    ATIVOS = (Status.AGUARDANDO, Status.OFERECIDA)
+
+    class Meta:
+        ordering = ["criado_em", "pk"]  # ordem de chegada
+        verbose_name = "lista de espera"
+        verbose_name_plural = "lista de espera"
+
+    def mesma_fila(self):
+        # quem espera pela mesma coisa: a mesma aula, ou o mesmo serviço, profissional e horário
+        if self.aula_id:
+            return ListaEspera.objects.filter(aula_id=self.aula_id)
+        return ListaEspera.objects.filter(aula__isnull=True, servico_id=self.servico_id,
+                                          profissional_id=self.profissional_id, inicio=self.inicio)
+
+    @property
+    def posicao(self):
+        # 1 = o próximo a receber a vaga; só faz sentido para quem ainda está aguardando
+        if self.status != self.Status.AGUARDANDO:
+            return None
+        na_frente = self.mesma_fila().filter(status=self.Status.AGUARDANDO).filter(
+            models.Q(criado_em__lt=self.criado_em) | models.Q(criado_em=self.criado_em, pk__lt=self.pk))
+        return na_frente.count() + 1
+
+    def clean(self, agora=None):
+        agora = agora or timezone.now()
+        if self.aula_id:  # numa aula, serviço, profissional e horário são os dela
+            self.servico, self.profissional, self.inicio = self.aula.servico, self.aula.profissional, self.aula.inicio
+        if self.pk or not (self.servico_id and self.profissional_id and self.inicio):
+            return  # só valida a entrada na fila; o resto quem muda é o sistema
+        erros = {}
+        fim = self.inicio + self.servico.duracao
+        if self.inicio <= agora:
+            erros.setdefault("inicio", []).append("Esse horário já passou.")
+        if not self.profissional.atende(self.servico.especialidade):
+            erros.setdefault("profissional", []).append("Este profissional não atende a especialidade do serviço.")
+        if self.atleta_id:
+            if self.mesma_fila().filter(atleta_id=self.atleta_id, status__in=self.ATIVOS).exists():
+                erros.setdefault("atleta", []).append("Este atleta já está na lista de espera desse horário.")
+            if Agendamento.objects.filter(atleta_id=self.atleta_id, status=Agendamento.Status.AGENDADO,
+                                          inicio__lt=fim, fim__gt=self.inicio).exists():
+                erros.setdefault("atleta", []).append("Este atleta já tem um agendamento nesse horário.")
+        # pré-condição do UC19: só entra na fila quem quer algo que está ocupado
+        if self.aula_id:
+            ocupado = self.aula.lotada
+        else:
+            ocupado = (Agendamento.objects.filter(status=Agendamento.Status.AGENDADO, aula__isnull=True,
+                                                  profissional_id=self.profissional_id,
+                                                  inicio__lt=fim, fim__gt=self.inicio).exists()
+                       or ListaEspera.objects.filter(status=self.Status.OFERECIDA, vaga__aula__isnull=True,
+                                                     vaga__profissional_id=self.profissional_id,
+                                                     vaga__inicio__lt=fim, vaga__fim__gt=self.inicio).exists())
+        if not ocupado:
+            erros.setdefault("inicio", []).append("Esse horário está livre: dá para agendar direto.")
+        if erros:
+            raise ValidationError(erros)
+
+    def atleta_ocupado(self):
+        # A1: se ele já marcou outro atendimento nesse horário, não adianta oferecer
+        fim = self.inicio + self.servico.duracao
+        return Agendamento.objects.filter(atleta_id=self.atleta_id, status=Agendamento.Status.AGENDADO,
+                                          inicio__lt=fim, fim__gt=self.inicio).exists()
+
+    @classmethod
+    def oferecer_vaga(cls, vaga, agora=None):
+        # vaga = o agendamento que liberou o horário. Devolve a espera que recebeu a oferta, ou None.
+        agora = agora or timezone.now()
+        prazo = Configuracao.atual().prazo_para_confirmar(vaga.inicio, agora)
+        if prazo <= agora:
+            return None  # A3: em cima da hora, a vaga fica livre para qualquer um
+        if vaga.aula_id:
+            fila = cls.objects.filter(aula_id=vaga.aula_id)
+        else:
+            fila = cls.objects.filter(aula__isnull=True, servico_id=vaga.servico_id,
+                                      profissional_id=vaga.profissional_id, inicio=vaga.inicio)
+        fila = fila.filter(status=cls.Status.AGUARDANDO).select_related(
+            "atleta__usuario", "atleta__responsavel__usuario", "servico", "profissional__funcionario__usuario")
+        for espera in fila:
+            if espera.atleta_ocupado():
+                continue
+            espera.status, espera.vaga, espera.prazo = cls.Status.OFERECIDA, vaga, prazo
+            espera.save(update_fields=["status", "vaga", "prazo"])
+            espera.avisar(f"Abriu uma vaga para você: {espera.descricao()}. "
+                          f"Confirme até {timezone.localtime(prazo):%d/%m às %H:%M}.")
+            return espera
+        return None
+
+    def descricao(self):
+        return f"{self.servico} com {self.profissional.nome} em {timezone.localtime(self.inicio):%d/%m às %H:%M}"
+
+    def avisar(self, texto):
+        for usuario in quem_avisar(self.atleta):
+            Aviso.avisar(usuario, texto)
+
+    @transaction.atomic
+    def confirmar(self, agora=None):
+        # a vaga vira um agendamento normal (passo 5 do UC19)
+        agora = agora or timezone.now()
+        if self.status != self.Status.OFERECIDA:
+            raise ValidationError("Não há vaga oferecida para confirmar.")
+        if agora >= self.prazo:
+            raise ValidationError("O prazo para confirmar essa vaga já acabou.")
+        self.status = self.Status.CONFIRMADA  # primeiro sai da reserva, senão a própria oferta bloquearia a vaga
+        self.save(update_fields=["status"])
+        vaga = self.vaga
+        novo = Agendamento(atleta=self.atleta, servico=vaga.servico, profissional=vaga.profissional,
+                           espaco=vaga.espaco, aula=vaga.aula, inicio=vaga.inicio)
+        try:
+            novo.clean()
+        except ValidationError:
+            self.status = self.Status.OFERECIDA  # o banco volta sozinho (atomic); o objeto em memória, não
+            raise
+        novo.save()
+        self.agendamento = novo
+        self.save(update_fields=["agendamento"])
+        return novo
+
+    @transaction.atomic
+    def recusar(self, agora=None):
+        if self.status != self.Status.OFERECIDA:
+            raise ValidationError("Não há vaga oferecida para recusar.")
+        self.status = self.Status.RECUSADA
+        self.save(update_fields=["status"])
+        ListaEspera.oferecer_vaga(self.vaga, agora)  # passa para o próximo da fila
+
+    @transaction.atomic
+    def sair(self, agora=None):
+        # A4: o atleta desiste de esperar
+        if self.status not in self.ATIVOS:
+            raise ValidationError("Este atleta não está mais na lista de espera.")
+        tinha_vaga = self.status == self.Status.OFERECIDA
+        self.status = self.Status.SAIU
+        self.save(update_fields=["status"])
+        if tinha_vaga:
+            ListaEspera.oferecer_vaga(self.vaga, agora)
+
+    @classmethod
+    def vencer_ofertas(cls, agora=None):
+        # A2: quem não confirmou no prazo perde a vez, e a vaga vai para o próximo. Roda no rotinas_da_agenda.
+        agora = agora or timezone.now()
+        vencidas = cls.objects.filter(status=cls.Status.OFERECIDA, prazo__lte=agora).select_related(
+            "atleta__usuario", "atleta__responsavel__usuario", "servico", "profissional__funcionario__usuario",
+            "vaga")
+        total = 0
+        for espera in vencidas:
+            with transaction.atomic():
+                espera.status = cls.Status.VENCIDA
+                espera.save(update_fields=["status"])
+                espera.avisar(f"O prazo para confirmar a vaga de {espera.descricao()} acabou.")
+                cls.oferecer_vaga(espera.vaga, agora)
+            total += 1
+        return total
+
+    def __str__(self):
+        return f"{self.atleta} espera {self.descricao()} ({self.get_status_display()})"
 
 
 class Aviso(models.Model):
