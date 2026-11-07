@@ -6,6 +6,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/API/</loc>
+         <lastmod>2026-11-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Construcao/</loc>
          <lastmod>2026-11-07</lastmod>
          <changefreq>daily</changefreq>
@@ -22,6 +27,11 @@
     </url>
     <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Construcao/github_workflows/</loc>
+         <lastmod>2026-11-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Disciplina/Bibliografia/</loc>
          <lastmod>2026-11-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
@@ -147,6 +157,11 @@
     </url>
     <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Transicao/</loc>
+         <lastmod>2026-11-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Transicao/plano_de_transicao/</loc>
          <lastmod>2026-11-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
