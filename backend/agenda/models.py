@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -121,6 +121,11 @@ class Agendamento(models.Model):
     equipamentos = models.ManyToManyField(Equipamento, blank=True, related_name="agendamentos",
                                           help_text="Equipamentos reservados para este atendimento.")
     criado_em = models.DateTimeField(auto_now_add=True)
+    lembrete_enviado_em = models.DateTimeField(
+        null=True, blank=True, editable=False,
+        help_text="Quando o lembrete de 24 horas foi enviado (UC20). Vazio = ainda não enviado.")
+
+    ANTECEDENCIA_DO_LEMBRETE = timedelta(hours=24)
 
     class Meta:
         ordering = ["inicio"]
@@ -236,6 +241,42 @@ class Agendamento(models.Model):
         novo.save()
         novo.reservar_equipamentos(self.equipamentos.all())  # leva os mesmos equipamentos para o novo horário
         return novo
+
+    # ---------------------------------------------------------------- UC20: lembrete 24 horas antes
+
+    def quem_recebe_avisos(self):
+        # o atleta e, se ele tiver responsável (menor de idade), o responsável também
+        usuarios = [self.atleta.usuario]
+        if self.atleta.responsavel_id:
+            usuarios.append(self.atleta.responsavel.usuario)
+        return usuarios
+
+    def enviar_lembrete(self):
+        quando = timezone.localtime(self.inicio)
+        texto = (f"Lembrete: {self.servico} com {self.profissional.nome} em {quando:%d/%m às %H:%M}, "
+                 f"{self.espaco}. Protocolo {self.protocolo}.")
+        for usuario in self.quem_recebe_avisos():
+            Aviso.avisar(usuario, texto)
+        self.lembrete_enviado_em = timezone.now()
+        self.save(update_fields=["lembrete_enviado_em"])
+
+    @classmethod
+    def precisam_de_lembrete(cls, agora=None):
+        # marcados, sem lembrete ainda, e que começam nas próximas 24 horas
+        agora = agora or timezone.now()
+        return cls.objects.filter(status=cls.Status.AGENDADO, lembrete_enviado_em__isnull=True,
+                                  inicio__gt=agora, inicio__lte=agora + cls.ANTECEDENCIA_DO_LEMBRETE)
+
+    @classmethod
+    def enviar_lembretes(cls, agora=None):
+        pendentes = cls.precisam_de_lembrete(agora).select_related(
+            "atleta__usuario", "atleta__responsavel__usuario", "servico", "espaco",
+            "profissional__funcionario__usuario")
+        enviados = 0
+        for agendamento in pendentes:
+            agendamento.enviar_lembrete()
+            enviados += 1
+        return enviados
 
     def __str__(self):
             return f"{self.protocolo} - {self.atleta} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
