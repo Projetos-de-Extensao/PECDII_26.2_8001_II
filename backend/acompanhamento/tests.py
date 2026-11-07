@@ -1,7 +1,6 @@
 from datetime import date
 from decimal import Decimal
 
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -9,7 +8,7 @@ from rest_framework.test import APIClient
 from estrutura.models import Especialidade
 from pessoas.cadastros import cadastrar_responsavel
 from pessoas.models import Recepcao
-from pkzlab.testes_comuns import atleta, funcionario, profissional
+from pkzlab.testes_comuns import atleta, funcionario, profissional, usuario_com_papel
 
 from .models import AvaliacaoFisica, Exercicio, PlanoTreino
 
@@ -136,7 +135,7 @@ class ApiDeAcompanhamento(Base):
         self.assertEqual(r.status_code, 400)
 
     def test_admin_precisa_dizer_o_profissional(self):
-        chefe = User.objects.create_user("chefe", is_staff=True)
+        chefe = usuario_com_papel("chefe", "administrador")
         r = self.como(chefe).post("/api/avaliacoes/", {"atleta": self.joao.pk, "velocidade": "5"})
         self.assertEqual(r.status_code, 400)
         self.assertIn("profissional", r.data)

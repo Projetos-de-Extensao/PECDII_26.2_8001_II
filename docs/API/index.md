@@ -39,7 +39,15 @@ Sem login, qualquer endpoint responde `403`, com duas exceções que são aberta
 | Agendamentos | `/api/agendamentos/` | Atleta, responsável, equipe | UC06, UC08, UC09, UC10 |
 | Avisos | `/api/avisos/` | Só leitura e marcar como lido | UC20 |
 
-Nos recursos de estrutura, todo usuário logado consulta e só a equipe administrativa (`is_staff`) cadastra, altera e apaga. As listas são paginadas (20 por página) e respondem `count`, `next`, `previous` e `results`.
+As permissões da API vêm dos grupos Django correspondentes aos papéis ativos do funcionário:
+
+| Grupo | Permissões |
+| -- | -- |
+| Profissional | Consultar cadastros, agendar para atletas e registrar dados técnicos |
+| Recepção | Consultar cadastros, agendar para atletas, gerenciar a agenda e cadastros |
+| Administrador | Todas as permissões, incluindo estrutura e administração do sistema |
+
+A inativação da conta remove o usuário dos grupos de papel e, no painel, alerta sobre os agendamentos futuros que exigem revisão. Nos recursos de estrutura, todo usuário logado consulta e só a administração cadastra, altera e apaga. As listas são paginadas (20 por página) e respondem `count`, `next`, `previous` e `results`.
 
 ## Exemplos
 

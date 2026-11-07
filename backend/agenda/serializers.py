@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from estrutura.models import Servico
+from pessoas.permissoes import tem_permissao
 
 from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
 from .perfis import pode_agendar_para, profissional_de
@@ -63,7 +64,7 @@ class AulaSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         usuario = self.context["request"].user
-        if not usuario.is_staff:
+        if not tem_permissao(usuario, "administrar_sistema"):
             raise serializers.ValidationError({"detail": "Só a equipe administrativa pode gerenciar aulas."})
         dados = _dados_com_instancia(self.instance, attrs,
                                      ("servico", "profissional", "espaco", "dia", "hora_inicio", "hora_fim", "ativo"))
@@ -171,7 +172,7 @@ class DisponibilidadeSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         # UC05: o profissional mantém só a própria; a equipe administrativa escolhe de quem é
         usuario = self.context["request"].user
-        if usuario.is_staff:
+        if tem_permissao(usuario, "gerenciar_agenda"):
             if not self.instance and not attrs.get("profissional"):
                 raise serializers.ValidationError({"profissional": "Informe o profissional."})
         else:

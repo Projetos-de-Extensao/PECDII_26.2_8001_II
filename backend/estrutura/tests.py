@@ -61,11 +61,12 @@ class PrazoDeConfirmacao(TestCase):
 
 class ApiDaEstrutura(TestCase):
     def setUp(self):
-        from django.contrib.auth.models import User
         from rest_framework.test import APIClient
+        from django.contrib.auth.models import User
+        from pkzlab.testes_comuns import usuario_com_papel
         self.api = APIClient()
         self.comum = User.objects.create_user("comum")
-        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.admin = usuario_com_papel("chefe", "administrador")
 
     def test_logado_consulta_mas_nao_altera(self):
         self.api.force_authenticate(self.comum)
@@ -83,11 +84,12 @@ class Documentacao(TestCase):
         self.assertEqual(self.client.get("/api/schema/").status_code, 200)
 class ApiDeEquipamentos(TestCase):
     def setUp(self):
-        from django.contrib.auth.models import User
         from rest_framework.test import APIClient
+        from django.contrib.auth.models import User
+        from pkzlab.testes_comuns import usuario_com_papel
         self.api = APIClient()
         self.comum = User.objects.create_user("comum")
-        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.admin = usuario_com_papel("chefe", "administrador")
 
     def test_admin_cadastra_equipamento(self):
         self.api.force_authenticate(self.admin)

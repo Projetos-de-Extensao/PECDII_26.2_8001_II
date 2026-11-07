@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from agenda.perfis import profissional_de
 from agenda.serializers import erro_da_api
+from pessoas.permissoes import tem_permissao
 
 from .models import TESTES, AvaliacaoFisica, Exercicio, ItemDoPlano, PlanoTreino
 
@@ -11,7 +12,7 @@ from .models import TESTES, AvaliacaoFisica, Exercicio, ItemDoPlano, PlanoTreino
 def _profissional_da_requisicao(serializer, attrs):
     # o profissional logado registra em nome dele; a administração escolhe de quem é
     usuario = serializer.context["request"].user
-    if usuario.is_staff:
+    if tem_permissao(usuario, "administrar_sistema"):
         if not attrs.get("profissional"):
             raise serializers.ValidationError({"profissional": "Informe o profissional."})
         return attrs["profissional"]

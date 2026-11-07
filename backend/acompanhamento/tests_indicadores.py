@@ -1,14 +1,13 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.contrib.auth.models import User
 from django.utils import timezone
 
 from agenda.models import Agendamento, Atendimento
 from estrutura.models import Espaco, Servico
 from pessoas.cadastros import cadastrar_responsavel
 from pessoas.models import Recepcao
-from pkzlab.testes_comuns import atleta, funcionario, profissional
+from pkzlab.testes_comuns import atleta, funcionario, profissional, usuario_com_papel
 
 from .indicadores import evolucao, relatorio_de_desempenho
 from .models import AvaliacaoFisica
@@ -129,7 +128,7 @@ class ApiDeIndicadores(ComDados):
         self.assertEqual(self.get(self.joao.usuario, self.relatorio).status_code, 403)
         self.assertEqual(self.get(rita, self.relatorio).status_code, 403)
         self.assertEqual(self.get(self.prof.funcionario.usuario, self.relatorio).status_code, 200)
-        chefe = User.objects.create_user("chefe", is_staff=True)
+        chefe = usuario_com_papel("chefe", "administrador")
         self.assertEqual(self.get(chefe, self.relatorio).json()["totais"]["avaliacoes"], 1)
 
     def test_relatorio_exige_periodo(self):

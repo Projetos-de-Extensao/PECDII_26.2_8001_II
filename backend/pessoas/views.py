@@ -2,6 +2,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, viewsets
 
 from .models import Atleta, Profissional,Responsavel
+from .permissoes import tem_permissao
 from .serializers import AtletaSerializer, ProfissionalSerializer, ResponsavelSerializer
 
 
@@ -22,7 +23,7 @@ class ProfissionalViewSet(viewsets.ReadOnlyModelViewSet):
 
 def ve_todas_as_pessoas(usuario):
     # a equipe do CT (recepção, profissionais, administração) enxerga todos os cadastros
-    return usuario.is_staff or hasattr(usuario, "funcionario")
+    return tem_permissao(usuario, "ver_todas_as_pessoas")
 
 
 class AtletaViewSet(

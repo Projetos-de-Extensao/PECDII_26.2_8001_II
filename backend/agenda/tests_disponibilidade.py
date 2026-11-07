@@ -1,12 +1,11 @@
 """Testes da issue #32: Disponibilidade e Bloqueio (UC05, UC17)."""
 from datetime import datetime, time
 
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from estrutura.models import Equipamento, Espaco
-from pkzlab.testes_comuns import atleta, hora, profissional
+from pkzlab.testes_comuns import atleta, hora, profissional, usuario_com_papel
 
 from .models import Agendamento, Bloqueio, Disponibilidade
 from .tests import Base
@@ -89,7 +88,7 @@ class ApiDeDisponibilidade(Base):
         super().setUp()
         self.api = APIClient()
         self.nina = self.nutricionista.funcionario.usuario
-        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.admin = usuario_com_papel("chefe", "administrador")
         self.turno = {"dia_da_semana": 0, "hora_inicio": "08:00", "hora_fim": "12:00"}
 
     def test_profissional_cria_a_propria(self):
@@ -166,7 +165,7 @@ class ApiDeBloqueio(Base):
     def setUp(self):
         super().setUp()
         self.api = APIClient()
-        self.admin = User.objects.create_user("chefe", is_staff=True)
+        self.admin = usuario_com_papel("chefe", "administrador")
         self.pedido = {"profissional": self.nutricionista.pk, "inicio": hora(2, 9, 30).isoformat(),
                        "fim": hora(2, 10).isoformat(), "motivo": "Folga"}
 

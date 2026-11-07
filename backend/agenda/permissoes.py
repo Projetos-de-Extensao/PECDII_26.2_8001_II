@@ -1,17 +1,18 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from .perfis import profissional_de
+from pessoas.permissoes import tem_permissao
 
 
 class ProfissionalMantemAPropria(BasePermission):
     # UC05: todo usuário logado consulta a disponibilidade (precisa dela para agendar, UC07);
     # só o próprio profissional (ou a equipe administrativa) cadastra, altera e apaga.
     def has_permission(self, request, view):
-        return (request.method in SAFE_METHODS or request.user.is_staff
+        return (request.method in SAFE_METHODS or tem_permissao(request.user, "gerenciar_agenda")
                 or profissional_de(request.user) is not None)
 
     def has_object_permission(self, request, view, obj):
-        if request.method in SAFE_METHODS or request.user.is_staff:
+        if request.method in SAFE_METHODS or tem_permissao(request.user, "gerenciar_agenda"):
             return True
         proprio = profissional_de(request.user)
         return proprio is not None and obj.profissional_id == proprio.pk

@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 
 from pkzlab.permissoes import SoAdminAltera
+from pessoas.permissoes import tem_permissao
 
 from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
 from .permissoes import ProfissionalMantemAPropria
@@ -137,7 +138,7 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         usuario = self.request.user
-        if not usuario.is_staff and not profissional_de(usuario):
+        if not tem_permissao(usuario, "ver_todas_as_pessoas") and not profissional_de(usuario):
             qs = qs.filter(atleta__usuario_id=usuario.pk)
         profissional = self.request.query_params.get("profissional")
         if profissional and profissional.isdigit():

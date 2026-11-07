@@ -1,6 +1,41 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.models import User
+from django.db.models import Q
+from django.utils import timezone
 
 from .models import Administrador, Atleta, ConsentimentoLGPD, Funcionario, Profissional, Recepcao, Responsavel
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class UserAdmin(DjangoUserAdmin):
+    def save_model(self, request, obj, form, change):
+        estava_ativo = User.objects.filter(pk=obj.pk, is_active=True).exists() if change else False
+        super().save_model(request, obj, form, change)
+        if estava_ativo and not obj.is_active:
+            from agenda.models import Agendamento
+
+            futuros = Agendamento.objects.filter(
+                status=Agendamento.Status.AGENDADO,
+                inicio__gt=timezone.now(),
+            ).filter(
+                Q(atleta__usuario=obj) | Q(profissional__funcionario__usuario=obj)
+            ).distinct()
+            protocolos = list(futuros.values_list("protocolo", flat=True)[:5])
+            if protocolos:
+                total = futuros.count()
+                lista = ", ".join(protocolos)
+                if total > len(protocolos):
+                    lista += f" e mais {total - len(protocolos)}"
+                self.message_user(
+                    request,
+                    f"Atenção: a conta foi inativada, mas há {total} agendamento(s) futuro(s) "
+                    f"que precisam de revisão: {lista}.",
+                    level="WARNING",
+                )
 
 
 class ProfissionalInline(admin.StackedInline):

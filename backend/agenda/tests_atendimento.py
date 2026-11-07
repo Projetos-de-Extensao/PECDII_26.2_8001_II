@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from pessoas.models import Recepcao
-from pkzlab.testes_comuns import atleta, funcionario, hora
+from pkzlab.testes_comuns import atleta, funcionario, hora, usuario_com_papel
 
 from .models import Agendamento, Atendimento
 from .tests import Base
@@ -83,8 +83,7 @@ class ApiDeAtendimento(Base):
         self.assertEqual(self.como(self.joao.usuario).post(self.url, {"status": "PRESENCA"}).status_code, 403)
 
     def test_admin_registra(self):
-        from django.contrib.auth.models import User
-        chefe = User.objects.create_user("chefe", is_staff=True)
+        chefe = usuario_com_papel("chefe", "administrador")
         self.assertEqual(self.como(chefe).post(self.url, {"status": "PRESENCA"}).status_code, 201)
 
     def test_cada_um_ve_so_o_seu_historico(self):

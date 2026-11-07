@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from .cadastros import VERSAO_TERMOS_ATUAL, cadastrar_atleta,cadastrar_responsavel
 from .models import Atleta, Profissional, Responsavel
+from .permissoes import tem_permissao
 
 
 class ProfissionalSerializer(serializers.ModelSerializer):
@@ -71,7 +72,7 @@ class AtletaSerializer(serializers.ModelSerializer):
         responsavel = validated_data.pop("responsavel", None)
         if hasattr(usuario, "responsavel"):
             responsavel = usuario.responsavel
-        elif not usuario.is_staff:
+        elif not tem_permissao(usuario, "gerenciar_cadastros"):
             responsavel = None
         try:
             return cadastrar_atleta(responsavel=responsavel, **validated_data)

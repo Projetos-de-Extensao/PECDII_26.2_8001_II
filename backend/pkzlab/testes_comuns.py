@@ -34,6 +34,25 @@ def profissional(login, nome, matricula, *especialidades):
     return p
 
 
+def usuario_com_papel(login, papel):
+    from pessoas.models import Administrador, Funcionario, Recepcao
+    from pessoas.models import Profissional as PapelProfissional
+
+    usuario = User.objects.create_user(login, is_staff=(papel == "administrador"))
+    colaborador = Funcionario.objects.create(
+        usuario=usuario,
+        matricula=f"TEST-{usuario.pk}",
+        data_admissao=date(2025, 1, 10),
+    )
+    perfil = {
+        "administrador": Administrador,
+        "recepcao": Recepcao,
+        "profissional": PapelProfissional,
+    }[papel]
+    perfil.objects.create(funcionario=colaborador)
+    return usuario
+
+
 def atleta(login, nome, nascimento=date(2000, 1, 1), responsavel=None):
     from pessoas.cadastros import cadastrar_atleta
     return cadastrar_atleta(email=f"{login}@x.com", nome=nome, sobrenome="", senha="senha12345",

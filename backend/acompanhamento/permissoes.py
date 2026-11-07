@@ -1,11 +1,12 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from agenda.perfis import profissional_de
+from pessoas.permissoes import tem_permissao
 
 
 def da_equipe_tecnica(usuario):
     # quem registra avaliação e prescreve treino: profissional ou administração
-    return usuario.is_staff or profissional_de(usuario) is not None
+    return tem_permissao(usuario, "registrar_dados_tecnicos")
 
 
 class EquipeTecnicaRegistra(BasePermission):

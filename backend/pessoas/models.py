@@ -29,6 +29,15 @@ class Funcionario(models.Model):
     class Meta:
         verbose_name = "funcionário"
         ordering = ["usuario__first_name"]
+        permissions = [
+            ("ver_todas_as_pessoas", "Pode consultar todos os cadastros de pessoas"),
+            ("agendar_para_qualquer_atleta", "Pode agendar para qualquer atleta"),
+            ("registrar_dados_tecnicos", "Pode registrar dados da equipe técnica"),
+            ("gerenciar_agenda", "Pode gerenciar a agenda de toda a equipe"),
+            ("gerenciar_cadastros", "Pode gerenciar cadastros de pessoas"),
+            ("gerenciar_estrutura", "Pode gerenciar a estrutura e a equipe"),
+            ("administrar_sistema", "Pode administrar todas as funções do sistema"),
+        ]
 
     @property
     def nome(self):

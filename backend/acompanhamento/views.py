@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from agenda.perfis import profissional_de
 from pessoas.models import Atleta
+from pessoas.permissoes import tem_permissao
 from pkzlab.permissoes import SoAdminAltera
 
 from .indicadores import evolucao, relatorio_de_desempenho
@@ -22,7 +23,7 @@ from .serializers import (AvaliacaoFisicaSerializer, ExercicioSerializer, Filtro
 def do_visivel(qs, usuario, campo=""):
     # a equipe do CT vê todos; o atleta, os dele; o responsável, os dos dependentes (UC12, UC13 e UC14)
     # campo: o caminho até o Atleta ("atleta" numa avaliação, "" no próprio Atleta)
-    if usuario.is_staff or hasattr(usuario, "funcionario"):
+    if tem_permissao(usuario, "ver_todas_as_pessoas"):
         return qs
     prefixo = f"{campo}__" if campo else ""
     pode_ver = Q(pk__in=[])
@@ -122,7 +123,7 @@ class RelatorioDeDesempenhoView(APIView):
         if not da_equipe_tecnica(usuario):
             raise PermissionDenied("Relatórios são só para profissionais e administração.")
         filtro = _periodo(FiltroRelatorioSerializer, request)
-        if usuario.is_staff:
+        if tem_permissao(usuario, "administrar_sistema"):
             profissional = filtro.get("profissional")
         else:
             profissional = profissional_de(usuario)

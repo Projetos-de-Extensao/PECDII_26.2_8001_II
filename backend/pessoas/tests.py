@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from pkzlab.testes_comuns import atleta as criar_atleta_comum
+from pkzlab.testes_comuns import usuario_com_papel
 from .cadastros import cadastrar_atleta, cadastrar_responsavel
 from .models import Atleta, ConsentimentoLGPD, Responsavel
 
@@ -108,7 +109,7 @@ class QuemVeOQueNaApi(TestCase):
         self.mae = cadastrar_responsavel(email="maria@x.com", nome="Maria", senha="senha12345", aceitou_termos=True)
         self.filho = criar_atleta_comum("pedro", "Pedro", nascimento=date(2014, 3, 10), responsavel=self.mae)
         self.joao = criar_atleta_comum("joao", "João")
-        self.recepcao = User.objects.create_user("carla@ct.com", is_staff=True)
+        self.recepcao = usuario_com_papel("carla@ct.com", "recepcao")
 
     def ids(self, usuario):
         self.api.force_authenticate(usuario)
