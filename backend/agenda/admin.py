@@ -1,17 +1,31 @@
 from django.contrib import admin, messages
 
-from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
+
+
+@admin.register(Aula)
+class AulaAdmin(admin.ModelAdmin):
+    list_display = ("servico", "profissional", "espaco", "dia", "hora_inicio", "hora_fim", "ativo")
+    list_filter = ("ativo", "servico", "profissional", "espaco")
+    search_fields = ("servico__nome", "profissional__funcionario__usuario__username")
 
 
 @admin.register(Agendamento)
 class AgendamentoAdmin(admin.ModelAdmin):
-    list_display = ("protocolo", "servico", "profissional", "espaco", "inicio", "fim", "status")
+    list_display = ("protocolo", "servico", "profissional", "espaco", "aula", "inicio", "fim", "status")
     list_filter = ("status", "servico", "profissional", "espaco")
     search_fields = ("protocolo",)
     readonly_fields = ("protocolo", "fim", "substitui")
 
     def has_delete_permission(self, request, obj=None):
         return False  # agendamento não se apaga: cancela (UC09)
+
+
+@admin.register(Inscricao)
+class InscricaoAdmin(admin.ModelAdmin):
+    list_display = ("aula", "atleta", "status", "criado_em")
+    list_filter = ("status", "aula__servico")
+    search_fields = ("atleta__usuario__username", "aula__servico__nome")
 @admin.register(Aviso)
 class AvisoAdmin(admin.ModelAdmin):
     # histórico do que foi avisado a cada pessoa: só leitura
