@@ -6,7 +6,7 @@ from django.test import TestCase
 from estrutura.models import Espaco, Especialidade, Servico,Equipamento
 from pkzlab.testes_comuns import hora, profissional,atleta
 
-from .models import Agendamento,Aviso,Disponibilidade
+from .models import Agendamento,Aula,Aviso,Disponibilidade
 
 
 class Base(TestCase):
@@ -330,4 +330,34 @@ class AtletaNoAgendamento(Base):
 
     def test_reagendar_mantem_o_atleta(self):
         novo = self.agendar(atleta=self.maria).reagendar(hora(2, 10))
-        self.assertEqual(novo.atleta, self.maria)                    # o segundo não ficou gravado pela metade    
+        self.assertEqual(novo.atleta, self.maria)                    # o segundo não ficou gravado pela metade
+
+
+class AulaEmGrupo(Base):
+    def setUp(self):
+        super().setUp()
+        self.servico_grupo = Servico.objects.create(nome="Pilates", especialidade=self.nutri,
+                                                   duracao_minutos=50, vagas=2)
+        self.servico_grupo.espacos.add(self.consultorio)
+        Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=hora(2, 9).weekday(),
+                                       hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
+        self.aula = Aula.objects.create(servico=self.servico_grupo, profissional=self.nutricionista,
+                                        espaco=self.consultorio, dia=hora(2, 9).date(), hora_inicio=hora(2, 9).time())
+
+    def test_aula_herda_vagas_do_servico(self):
+        self.assertEqual(self.aula.vagas_restantes, 2)
+        self.assertFalse(self.aula.lotada)
+
+    def test_turma_cheia_recusa_nova_inscricao(self):
+        atleta2 = atleta("maria-aula", "Maria")
+        Agendamento.objects.create(atleta=self.joao, servico=self.servico_grupo, profissional=self.nutricionista,
+                                   espaco=self.consultorio, aula=self.aula, inicio=self.aula.inicio)
+        Agendamento.objects.create(atleta=atleta2, servico=self.servico_grupo, profissional=self.nutricionista,
+                                   espaco=self.consultorio, aula=self.aula, inicio=self.aula.inicio)
+        self.assertEqual(self.aula.vagas_restantes, 0)
+        with self.assertRaises(ValidationError):
+            Agendamento(atleta=atleta("joana-aula", "Joana"), servico=self.servico_grupo,
+                        profissional=self.nutricionista, espaco=self.consultorio, aula=self.aula,
+                        inicio=self.aula.inicio).full_clean()
+        self.assertEqual(self.aula.vagas_restantes, 0)
+

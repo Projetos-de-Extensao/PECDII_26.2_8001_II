@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from estrutura.models import Servico
 
-from .models import Agendamento, Atendimento, Aviso, Bloqueio, Disponibilidade
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
 from .perfis import pode_agendar_para, profissional_de
 
 def erro_da_api(erro):
@@ -26,6 +26,13 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         if atleta and not pode_agendar_para(self.context["request"].user, atleta):
             raise serializers.ValidationError({"atleta": "Você só pode agendar para você mesmo ou para os seus dependentes."})
 
+        if attrs.get("aula"):
+            aula = attrs["aula"]
+            attrs.setdefault("servico", aula.servico)
+            attrs.setdefault("profissional", aula.profissional)
+            attrs.setdefault("espaco", aula.espaco)
+            attrs.setdefault("inicio", aula.inicio)
+
         dados = {campo: valor for campo, valor in attrs.items() if campo != "equipamentos"}  # lista não entra no construtor
         try:
             Agendamento(**dados).clean()
@@ -42,6 +49,48 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         except DjangoValidationError as e:
             raise erro_da_api(e)
         return agendamento
+
+
+class AulaSerializer(serializers.ModelSerializer):
+    vagas_restantes = serializers.IntegerField(read_only=True)
+    lotada = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Aula
+        fields = ["id", "servico", "profissional", "espaco", "dia", "hora_inicio", "hora_fim",
+                  "ativo", "vagas_restantes", "lotada", "criado_em"]
+        read_only_fields = ["hora_fim", "criado_em", "vagas_restantes", "lotada"]
+
+    def validate(self, attrs):
+        usuario = self.context["request"].user
+        if not usuario.is_staff:
+            raise serializers.ValidationError({"detail": "Só a equipe administrativa pode gerenciar aulas."})
+        dados = _dados_com_instancia(self.instance, attrs,
+                                     ("servico", "profissional", "espaco", "dia", "hora_inicio", "hora_fim", "ativo"))
+        try:
+            Aula(pk=self.instance.pk if self.instance else None, **dados).clean()
+        except DjangoValidationError as e:
+            raise erro_da_api(e)
+        return attrs
+
+
+class InscricaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Inscricao
+        fields = ["id", "aula", "atleta", "agendamento", "status", "criado_em"]
+        read_only_fields = ["criado_em"]
+
+    def validate(self, attrs):
+        usuario = self.context["request"].user
+        atleta = attrs.get("atleta") or getattr(self.instance, "atleta", None)
+        if atleta and not pode_agendar_para(usuario, atleta):
+            raise serializers.ValidationError({"atleta": "Você só pode se inscrever para você mesmo ou para os seus dependentes."})
+        dados = _dados_com_instancia(self.instance, attrs, ("aula", "atleta", "agendamento", "status"))
+        try:
+            Inscricao(pk=self.instance.pk if self.instance else None, **dados).clean()
+        except DjangoValidationError as e:
+            raise erro_da_api(e)
+        return attrs
 
 
 class CancelarSerializer(serializers.Serializer):

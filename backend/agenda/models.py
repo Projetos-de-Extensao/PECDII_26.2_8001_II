@@ -14,6 +14,91 @@ def novo_protocolo():
     return uuid.uuid4().hex[:10].upper()
 
 
+class Aula(models.Model):
+    servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="aulas")
+    profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="aulas")
+    espaco = models.ForeignKey(Espaco, on_delete=models.PROTECT, related_name="aulas")
+    dia = models.DateField(help_text="Dia da aula em grupo.")
+    hora_inicio = models.TimeField(help_text="Horário inicial da aula.")
+    hora_fim = models.TimeField(editable=False, help_text="Horário final calculado pela duração do serviço.")
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["dia", "hora_inicio"]
+        verbose_name = "aula"
+        verbose_name_plural = "aulas"
+
+    def clean(self):
+        erros = {}
+        if self.servico_id and self.profissional_id and not self.profissional.atende(self.servico.especialidade):
+            erros.setdefault("profissional", []).append("Este profissional não atende a especialidade do serviço.")
+        if self.espaco_id and self.servico_id and not self.servico.espacos_possiveis().filter(pk=self.espaco_id).exists():
+            erros.setdefault("espaco", []).append("Esta sala não é usada por este serviço.")
+        if self.profissional_id and self.espaco_id and self.servico_id:
+            conflito = Agendamento.objects.filter(
+                status=Agendamento.Status.AGENDADO,
+                inicio__lt=self.inicio + self.servico.duracao,
+                fim__gt=self.inicio,
+            )
+            if self.profissional_id:
+                conflito = conflito.filter(profissional_id=self.profissional_id)
+                if conflito.exists():
+                    erros.setdefault("profissional", []).append("O profissional já tem um agendamento nesse horário.")
+            if self.espaco_id:
+                conflito_espaco = Agendamento.objects.filter(
+                    status=Agendamento.Status.AGENDADO,
+                    espaco_id=self.espaco_id,
+                    inicio__lt=self.inicio + self.servico.duracao,
+                    fim__gt=self.inicio,
+                )
+                if conflito_espaco.exists():
+                    erros.setdefault("espaco", []).append("A sala já está ocupada nesse horário.")
+        if self.profissional_id and self.servico_id and hasattr(self.profissional, "funcionario"):
+            if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
+                erros.setdefault("profissional", []).append("Este profissional está inativo.")
+        if self.servico_id and self.hora_inicio and self.hora_fim:
+            if self.hora_fim <= self.hora_inicio:
+                erros.setdefault("hora_fim", []).append("O fim precisa ser depois do início.")
+        if erros:
+            raise ValidationError(erros)
+
+    @property
+    def inicio(self):
+        if self.dia and self.hora_inicio:
+            return timezone.make_aware(datetime.combine(self.dia, self.hora_inicio), timezone.get_current_timezone())
+        return None
+
+    @property
+    def fim(self):
+        if self.inicio and self.servico_id:
+            return self.inicio + self.servico.duracao
+        return None
+
+    @property
+    def vagas_restantes(self):
+        total = self.servico.vagas if self.servico_id else 0
+        usados = self.agendamentos.filter(status=Agendamento.Status.AGENDADO).count()
+        usados += sum(1 for inscricao in self.inscricoes.filter(status=Inscricao.Status.CONFIRMADA)
+                      if not inscricao.agendamento_id or inscricao.agendamento.aula_id != self.pk)
+        return max(total - usados, 0)
+
+    @property
+    def lotada(self):
+        return self.vagas_restantes <= 0 if self.servico_id else True
+
+    def save(self, *args, **kwargs):
+        if self.servico_id and self.hora_inicio and (not self.hora_fim or self.hora_fim == self.hora_inicio):
+            final = datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao
+            self.hora_fim = final.time()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        if self.dia:
+            return f"{self.servico} - {self.dia:%d/%m} {self.hora_inicio:%H:%M}"
+        return str(self.servico)
+
+
 class Agendamento(models.Model):
     class Status(models.TextChoices):
         AGENDADO = "AGENDADO", "Agendado"
@@ -25,6 +110,7 @@ class Agendamento(models.Model):
     servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="agendamentos")
     profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="agendamentos")
     espaco = models.ForeignKey(Espaco, on_delete=models.PROTECT, related_name="agendamentos")
+    aula = models.ForeignKey("Aula", null=True, blank=True, on_delete=models.PROTECT, related_name="agendamentos")
     inicio = models.DateTimeField()
     fim = models.DateTimeField(editable=False)
     status = models.CharField(max_length=11, choices=Status.choices, default=Status.AGENDADO)
@@ -48,6 +134,21 @@ class Agendamento(models.Model):
         erros = {}
         def adicionar_erro(campo, mensagem):
             erros.setdefault(campo, []).append(mensagem)
+
+        if self.aula_id:
+            aula = self.aula
+            if self.servico_id and self.servico_id != aula.servico_id:
+                adicionar_erro("servico", "O agendamento da aula precisa usar o mesmo serviço da aula.")
+            if self.profissional_id and self.profissional_id != aula.profissional_id:
+                adicionar_erro("profissional", "O profissional do agendamento precisa ser o mesmo da aula.")
+            if self.espaco_id and self.espaco_id != aula.espaco_id:
+                adicionar_erro("espaco", "O espaço do agendamento precisa ser o mesmo da aula.")
+            if self.inicio and aula.inicio and self.inicio != aula.inicio:
+                adicionar_erro("inicio", "A data/hora do agendamento precisa bater com a aula.")
+            if self.aula.lotada and self.status == self.Status.AGENDADO and self.pk is None:
+                adicionar_erro("aula", "A turma está lotada.")
+            if self.atleta_id and self.aula.agendamentos.filter(atleta_id=self.atleta_id, status=self.Status.AGENDADO).exclude(pk=self.pk).exists():
+                adicionar_erro("atleta", "Este atleta já está inscrito nesta aula.")
 
         if self.profissional_id and self.servico_id and not self.profissional.atende(self.servico.especialidade):
             adicionar_erro("profissional", "Este profissional não atende a especialidade do serviço.")
@@ -179,6 +280,39 @@ class Agendamento(models.Model):
 
     def __str__(self):
             return f"{self.protocolo} - {self.atleta} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
+
+
+class Inscricao(models.Model):
+    class Status(models.TextChoices):
+        CONFIRMADA = "CONFIRMADA", "Confirmada"
+        CANCELADA = "CANCELADA", "Cancelada"
+
+    aula = models.ForeignKey("Aula", on_delete=models.PROTECT, related_name="inscricoes")
+    atleta = models.ForeignKey(Atleta, on_delete=models.PROTECT, related_name="inscricoes")
+    agendamento = models.OneToOneField("Agendamento", null=True, blank=True, on_delete=models.PROTECT,
+                                      related_name="inscricao")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.CONFIRMADA)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["aula__dia", "aula__hora_inicio", "atleta__usuario__first_name"]
+        unique_together = ("aula", "atleta")
+
+    def clean(self):
+        erros = {}
+        if self.agendamento_id and self.agendamento.aula_id and self.agendamento.aula_id != self.aula_id:
+            erros.setdefault("agendamento", []).append("A inscrição deve referenciar o mesmo agendamento da aula.")
+        if self.status == self.Status.CONFIRMADA and self.aula.lotada and not self.pk:
+            erros.setdefault("aula", []).append("A turma está lotada.")
+        if self.pk is None and Inscricao.objects.filter(aula_id=self.aula_id, atleta_id=self.atleta_id, status=self.Status.CONFIRMADA).exists():
+            erros.setdefault("atleta", []).append("Este atleta já está inscrito nesta aula.")
+        if erros:
+            raise ValidationError(erros)
+
+    def __str__(self):
+        return f"{self.atleta} -> {self.aula}"
+
+
 class Aviso(models.Model):
     
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="avisos")
