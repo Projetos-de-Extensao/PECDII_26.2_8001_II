@@ -4,6 +4,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from rest_framework.routers import DefaultRouter
 from pessoas.autenticacao import CadastroView, RedefinirSenhaView, SolicitarRecuperacaoView, TokenPorEmailView
 from rest_framework_simplejwt.views import TokenRefreshView
+from acompanhamento.views import AvaliacaoFisicaViewSet, ExercicioViewSet, PlanoTreinoViewSet
 from agenda.views import (AgendamentoViewSet, AtendimentoViewSet, AvisoViewSet, BloqueioViewSet, DisponibilidadeViewSet,
                           HorariosLivresViewSet)
 from estrutura.views import EspacoViewSet, EspecialidadeViewSet, ServicoViewSet,EquipamentoViewSet
@@ -22,6 +23,9 @@ router.register("atendimentos", AtendimentoViewSet)
 router.register("avisos", AvisoViewSet)
 router.register("disponibilidades", DisponibilidadeViewSet)
 router.register("bloqueios", BloqueioViewSet)
+router.register("avaliacoes", AvaliacaoFisicaViewSet)
+router.register("exercicios", ExercicioViewSet)
+router.register("planos", PlanoTreinoViewSet)
 router.register("horarios-livres", HorariosLivresViewSet, basename="horarios-livres")
 
 urlpatterns = [

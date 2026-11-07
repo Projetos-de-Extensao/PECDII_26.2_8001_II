@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'estrutura',
     'pessoas',
     'agenda',
+    'acompanhamento',
 ]
 
 MIDDLEWARE = [

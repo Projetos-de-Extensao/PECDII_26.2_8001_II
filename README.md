@@ -25,7 +25,7 @@ python manage.py runserver
 Site: http://127.0.0.1:8000 · Painel do administrador: http://127.0.0.1:8000/admin
 
 ```bash
-python manage.py test estrutura pessoas agenda   # testes automáticos
+python manage.py test estrutura pessoas agenda acompanhamento   # testes automáticos
 python manage.py rotinas_da_agenda               # vence vagas não confirmadas e envia lembretes
 ```
 
@@ -35,8 +35,9 @@ Em produção, a rotina roda sozinha a cada 5 minutos (cron do servidor) e o ban
 
 | App | O que tem |
 | -- | -- |
-| `estrutura` | Especialidade, Espaço (salas ligadas às especialidades), Serviço (duração e vagas), Configuração |
+| `estrutura` | Especialidade, Espaço (salas ligadas às especialidades), Serviço (duração e vagas), Equipamento, Configuração |
 | `pessoas` | Funcionário, Papel (abstrata), Profissional, Recepção, Administrador, Atleta, Responsável, Consentimento LGPD |
-| `agenda` | Disponibilidade, Bloqueio, Aula (grade de aulas em grupo), Agendamento, Lista de espera, Aviso, telas do site |
+| `agenda` | Disponibilidade, Bloqueio, Aula (grade de aulas em grupo), Agendamento, Atendimento, Lista de espera, Aviso, telas do site |
+| `acompanhamento` | Avaliação física (com comparação à anterior), Exercício, Plano de treino (com histórico de versões) |
 
-A dependência vai num sentido só: `agenda` usa `pessoas` e `estrutura`; `pessoas` usa `estrutura`.
+A dependência vai num sentido só: `acompanhamento` usa `pessoas` e `agenda`; `agenda` usa `pessoas` e `estrutura`; `pessoas` usa `estrutura`.
