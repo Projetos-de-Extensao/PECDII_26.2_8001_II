@@ -1,12 +1,12 @@
 """Testes da issue #32: Disponibilidade e Bloqueio (UC05, UC17)."""
-from datetime import time
+from datetime import datetime, time
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from estrutura.models import Equipamento
-from pkzlab.testes_comuns import hora
+from estrutura.models import Equipamento, Espaco
+from pkzlab.testes_comuns import atleta, hora, profissional
 
 from .models import Agendamento, Bloqueio, Disponibilidade
 from .tests import Base
@@ -220,3 +220,90 @@ class ApiDeBloqueio(Base):
         dois = {**sem_alvo, "profissional": self.nutricionista.pk, "espaco": self.consultorio.pk}
         self.assertEqual(self.api.post("/api/bloqueios/", dois, format="json").status_code, 400)
         self.assertFalse(Bloqueio.objects.exists())
+
+
+class ValidacaoDeConflitosAgendamento(Base):
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.api.force_authenticate(self.nutricionista.funcionario.usuario)
+        self.consultorio2 = Espaco.objects.create(nome="Consultório 2")
+        self.consultorio2.especialidades.add(self.nutri)
+        self.bia = profissional("bia", "Bia", "M003", self.nutri)
+        self.maria = atleta("maria", "Maria")
+        self.dia = hora(2, 9).date()
+        for profissional_atual in (self.nutricionista, self.bia):
+            Disponibilidade.objects.create(profissional=profissional_atual, dia_da_semana=self.dia.weekday(),
+                                           hora_inicio=time(8), hora_fim=time(12))
+
+    def candidato(self, **alteracoes):
+        dados = {"atleta": self.joao, "servico": self.consulta, "profissional": self.nutricionista,
+                 "espaco": self.consultorio, "inicio": hora(2, 9)}
+        dados.update(alteracoes)
+        return Agendamento(**dados)
+
+    def test_profissional_em_conflito_identifica_o_recurso(self):
+        self.agendar()
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato(atleta=self.maria, espaco=self.consultorio2).full_clean()
+        self.assertIn("profissional", erro.exception.message_dict)
+
+        resposta = self.api.post("/api/agendamentos/", {
+            "atleta": self.maria.pk, "servico": self.consulta.pk, "profissional": self.nutricionista.pk,
+            "espaco": self.consultorio2.pk, "inicio": hora(2, 9).isoformat(),
+        }, format="json")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("profissional", resposta.data)
+
+    def test_atleta_em_conflito_identifica_o_recurso(self):
+        self.agendar()
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato(profissional=self.bia, espaco=self.consultorio2).full_clean()
+        self.assertIn("atleta", erro.exception.message_dict)
+
+    def test_capacidade_da_sala_e_respeitada(self):
+        self.consultorio.capacidade = 2
+        self.consultorio.save()
+        self.agendar()
+        Agendamento.objects.create(atleta=self.maria, servico=self.consulta, profissional=self.bia,
+                                   espaco=self.consultorio, inicio=hora(2, 9))
+        carlos_profissional = profissional("carlos-prof", "Carlos Profissional", "M004", self.nutri)
+        Disponibilidade.objects.create(profissional=carlos_profissional, dia_da_semana=self.dia.weekday(),
+                                       hora_inicio=time(8), hora_fim=time(12))
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato(atleta=atleta("carlos", "Carlos"), profissional=carlos_profissional).full_clean()
+        self.assertIn("espaco", erro.exception.message_dict)
+
+    def test_indisponibilidade_do_profissional_e_bloqueios_identificam_o_recurso(self):
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato(inicio=hora(2, 13)).full_clean()
+        self.assertIn("profissional", erro.exception.message_dict)
+
+        Bloqueio.objects.create(profissional=self.nutricionista, inicio=hora(2, 9), fim=hora(2, 10),
+                                motivo="Folga")
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato().full_clean()
+        self.assertIn("profissional", erro.exception.message_dict)
+
+    def test_bloqueio_de_sala_equipamento_e_respeitado(self):
+        Bloqueio.objects.create(espaco=self.consultorio, inicio=hora(2, 9), fim=hora(2, 10), motivo="Manutenção")
+        with self.assertRaises(ValidationError) as erro:
+            self.candidato().full_clean()
+        self.assertIn("espaco", erro.exception.message_dict)
+
+        equipamento = Equipamento.objects.create(nome="Esteira bloqueada", quantidade=1)
+        agendamento = self.agendar(hora(2, 11))
+        Bloqueio.objects.create(equipamento=equipamento, inicio=hora(2, 11), fim=hora(2, 12), motivo="Manutenção")
+        with self.assertRaises(ValidationError) as erro:
+            agendamento.reservar_equipamentos([equipamento])
+        self.assertIn("equipamentos", erro.exception.message_dict)
+
+    def test_horarios_livres_retorna_intervalos_de_30_minutos(self):
+        resposta = self.api.get(f"/api/horarios-livres/?servico={self.consulta.pk}&dia={self.dia.isoformat()}")
+        self.assertEqual(resposta.status_code, 200, resposta.data)
+        inicios = [datetime.fromisoformat(opcao["inicio"]) for opcao in resposta.data["results"]
+               if opcao["profissional"] == self.nutricionista.pk]
+        self.assertEqual(len(inicios), 7)
+        self.assertEqual([(b - a).total_seconds() // 60 for a, b in zip(inicios, inicios[1:])], [30] * 6)
+        self.assertEqual(inicios[0].time().replace(tzinfo=None), time(8))
+        self.assertEqual(inicios[-1].time().replace(tzinfo=None), time(11))

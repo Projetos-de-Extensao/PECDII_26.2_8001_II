@@ -2,6 +2,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 
 from estrutura.models import Espaco, Servico,Equipamento
 from pessoas.models import Profissional,Atleta
@@ -38,10 +39,49 @@ class Agendamento(models.Model):
 
     def clean(self):
         erros = {}
+        def adicionar_erro(campo, mensagem):
+            erros.setdefault(campo, []).append(mensagem)
+
         if self.profissional_id and self.servico_id and not self.profissional.atende(self.servico.especialidade):
-            erros["profissional"] = "Este profissional não atende a especialidade do serviço."
+            adicionar_erro("profissional", "Este profissional não atende a especialidade do serviço.")
         if self.espaco_id and self.servico_id and not self.servico.espacos_possiveis().filter(pk=self.espaco_id).exists():
-            erros["espaco"] = "Esta sala não é usada por este serviço."
+            adicionar_erro("espaco", "Esta sala não é usada por este serviço.")
+
+        if self.inicio and self.servico_id:
+            fim = self.inicio + self.servico.duracao
+            inicio_local = (timezone.localtime(self.inicio) if timezone.is_aware(self.inicio)
+                            else timezone.make_aware(self.inicio))
+            fim_local = (timezone.localtime(fim) if timezone.is_aware(fim)
+                         else timezone.make_aware(fim))
+            conflitos = Agendamento.objects.filter(status=self.Status.AGENDADO,
+                                                   inicio__lt=fim, fim__gt=self.inicio)
+            if self.pk:
+                conflitos = conflitos.exclude(pk=self.pk)
+
+            if self.profissional_id:
+                if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
+                    adicionar_erro("profissional", "Este profissional está inativo.")
+                turno = (inicio_local.date() == fim_local.date() and Disponibilidade.objects.filter(
+                    profissional_id=self.profissional_id, dia_da_semana=inicio_local.weekday(),
+                    hora_inicio__lte=inicio_local.time(), hora_fim__gte=fim_local.time()).exists())
+                if not turno:
+                    adicionar_erro("profissional", "O horário está fora da disponibilidade do profissional.")
+                if conflitos.filter(profissional_id=self.profissional_id).exists():
+                    adicionar_erro("profissional", "O profissional já tem um agendamento nesse horário.")
+                if Bloqueio.objects.filter(profissional_id=self.profissional_id,
+                                           inicio__lt=fim, fim__gt=self.inicio).exists():
+                    adicionar_erro("profissional", "O profissional está bloqueado nesse horário.")
+
+            if self.atleta_id and conflitos.filter(atleta_id=self.atleta_id).exists():
+                adicionar_erro("atleta", "O atleta já tem um agendamento nesse horário.")
+
+            if self.espaco_id:
+                ocupacao = conflitos.filter(espaco_id=self.espaco_id).count()
+                if ocupacao >= self.espaco.capacidade:
+                    adicionar_erro("espaco", "A sala já atingiu sua capacidade nesse horário.")
+                if Bloqueio.objects.filter(espaco_id=self.espaco_id,
+                                           inicio__lt=fim, fim__gt=self.inicio).exists():
+                    adicionar_erro("espaco", "A sala está bloqueada nesse horário.")
         if erros:
             raise ValidationError(erros)
 
@@ -53,6 +93,11 @@ class Agendamento(models.Model):
         for equipamento in equipamentos:
             if not equipamento.ativo:
                 erros.append(f"{equipamento} está fora de uso.")
+                continue
+            bloqueado = Bloqueio.objects.filter(equipamento=equipamento,
+                                                inicio__lt=self.fim, fim__gt=self.inicio).exists()
+            if bloqueado:
+                erros.append(f"{equipamento} está bloqueado nesse horário.")
                 continue
             em_uso = (Agendamento.objects
                       .filter(equipamentos=equipamento, status=self.Status.AGENDADO,
@@ -82,8 +127,10 @@ class Agendamento(models.Model):
             raise ValidationError("Só dá para reagendar um agendamento com status Agendado.")
         self.status = self.Status.SUBSTITUIDO
         self.save(update_fields=["status"])
-        novo = Agendamento.objects.create(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
-                                          espaco=self.espaco, inicio=novo_inicio, substitui=self)
+        novo = Agendamento(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
+                           espaco=self.espaco, inicio=novo_inicio, substitui=self)
+        novo.clean()
+        novo.save()
         novo.reservar_equipamentos(self.equipamentos.all())  # leva os mesmos equipamentos para o novo horário
         return novo
 

@@ -1,4 +1,7 @@
+from datetime import datetime, timedelta
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -11,7 +14,8 @@ from pkzlab.permissoes import SoAdminAltera
 from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
 from .permissoes import ProfissionalMantemAPropria
 from .serializers import (AgendamentoSerializer, AvisoSerializer, BloqueioSerializer, CancelarSerializer,
-                          DisponibilidadeSerializer, ReagendarSerializer, erro_da_api)
+                          DisponibilidadeSerializer, HorariosLivresQuerySerializer, ReagendarSerializer,
+                          erro_da_api)
 from .perfis import profissional_de, ve_a_agenda_toda
 
 
@@ -106,3 +110,50 @@ class BloqueioViewSet(viewsets.ModelViewSet):
     queryset = Bloqueio.objects.select_related("profissional__funcionario__usuario", "espaco", "equipamento")
     serializer_class = BloqueioSerializer
     permission_classes = [IsAuthenticated, SoAdminAltera]
+
+
+class HorariosLivresViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(parameters=[
+        OpenApiParameter("servico", int, required=True, description="ID do serviço."),
+        OpenApiParameter("dia", str, required=True, description="Data no formato AAAA-MM-DD."),
+    ])
+    def list(self, request):
+        consulta = HorariosLivresQuerySerializer(data=request.query_params)
+        consulta.is_valid(raise_exception=True)
+        servico = consulta.validated_data["servico"]
+        dia = consulta.validated_data["dia"]
+        disponibilidades = Disponibilidade.objects.filter(
+            profissional__especialidades=servico.especialidade,
+            profissional__ativo=True,
+            profissional__funcionario__usuario__is_active=True,
+            dia_da_semana=dia.weekday(),
+        ).select_related("profissional")
+        espacos = list(servico.espacos_possiveis())
+        fuso = timezone.get_current_timezone()
+        opcoes = []
+
+        for disponibilidade in disponibilidades:
+            inicio = datetime.combine(dia, disponibilidade.hora_inicio)
+            limite = datetime.combine(dia, disponibilidade.hora_fim)
+            while inicio + servico.duracao <= limite:
+                inicio_agendamento = timezone.make_aware(inicio, fuso)
+                fim_agendamento = inicio_agendamento + servico.duracao
+                for espaco in espacos:
+                    candidato = Agendamento(servico=servico, profissional=disponibilidade.profissional,
+                                            espaco=espaco, inicio=inicio_agendamento)
+                    try:
+                        candidato.clean()
+                    except DjangoValidationError:
+                        continue
+                    opcoes.append({
+                        "inicio": inicio_agendamento.isoformat(),
+                        "fim": fim_agendamento.isoformat(),
+                        "profissional": disponibilidade.profissional_id,
+                        "espaco": espaco.pk,
+                    })
+                inicio += timedelta(minutes=30)
+
+        opcoes.sort(key=lambda opcao: (opcao["inicio"], opcao["profissional"], opcao["espaco"]))
+        return Response({"results": opcoes})

@@ -6,7 +6,7 @@ from django.test import TestCase
 from estrutura.models import Espaco, Especialidade, Servico,Equipamento
 from pkzlab.testes_comuns import hora, profissional,atleta
 
-from .models import Agendamento,Aviso
+from .models import Agendamento,Aviso,Disponibilidade
 
 
 class Base(TestCase):
@@ -71,13 +71,27 @@ class CancelarEReagendar(Base):
 
     def test_reagendar_guarda_o_original(self):
         original = self.agendar()
-        novo = original.reagendar(hora(3, 9))
+        Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=hora(2, 9).weekday(),
+                                       hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
+        novo = original.reagendar(hora(2, 10))
         original.refresh_from_db()
         self.assertEqual(original.status, Agendamento.Status.SUBSTITUIDO)
         self.assertEqual(novo.status, Agendamento.Status.AGENDADO)
         self.assertEqual(novo.substitui, original)
         self.assertEqual(original.substituido_por, novo)
         self.assertEqual(novo.fim - novo.inicio, timedelta(minutes=50))
+
+    def test_reagendar_em_conflito_preserva_o_agendamento_original(self):
+        Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=hora(2, 9).weekday(),
+                                       hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
+        original = self.agendar()
+        outro_atleta = atleta("maria-reagendamento", "Maria")
+        self.agendar(hora(2, 11), atleta=outro_atleta)
+        with self.assertRaises(ValidationError):
+            original.reagendar(hora(2, 11))
+        original.refresh_from_db()
+        self.assertEqual(original.status, Agendamento.Status.AGENDADO)
+        self.assertEqual(Agendamento.objects.count(), 2)
 
 
 class ApiDeAgendamento(Base):
@@ -86,6 +100,9 @@ class ApiDeAgendamento(Base):
         from rest_framework.test import APIClient
         self.api = APIClient()
         self.api.force_authenticate(self.nutricionista.funcionario.usuario)
+        for profissional in (self.nutricionista, self.treinador):
+            Disponibilidade.objects.create(profissional=profissional, dia_da_semana=hora(2, 9).weekday(),
+                                           hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
 
     def test_sem_login_nao_ve_nada(self):
         from rest_framework.test import APIClient
@@ -112,7 +129,7 @@ class ApiDeAgendamento(Base):
         r = self.api.post(f"/api/agendamentos/{a.pk}/cancelar/", {"justificativa": "Atleta doente"})
         self.assertEqual(r.data["status"], "CANCELADO")
         self.assertEqual(self.api.post(f"/api/agendamentos/{a.pk}/cancelar/", {"justificativa": "De novo"}).status_code, 400)
-        r = self.api.post(f"/api/agendamentos/{b.pk}/reagendar/", {"inicio": hora(3, 9).isoformat()})
+        r = self.api.post(f"/api/agendamentos/{b.pk}/reagendar/", {"inicio": hora(2, 10).isoformat()})
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["substitui"], b.pk)
 
@@ -134,6 +151,9 @@ class ReservaDeEquipamentos(Base):
         self.consultorio2 = Espaco.objects.create(nome="Consultório 2")
         self.consultorio2.especialidades.add(self.nutri)
         self.bia = profissional("bia", "Bia", "M003", self.nutri)
+        for profissional_atual in (self.nutricionista, self.bia):
+            Disponibilidade.objects.create(profissional=profissional_atual, dia_da_semana=hora(2, 9).weekday(),
+                                           hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
 
     def test_reserva_o_equipamento(self):
         a = self.agendar()
@@ -170,7 +190,7 @@ class ReservaDeEquipamentos(Base):
     def test_reagendar_leva_os_equipamentos(self):
         a = self.agendar()
         a.reservar_equipamentos([self.bioimpedancia])
-        novo = a.reagendar(hora(3, 9))
+        novo = a.reagendar(hora(2, 10))
         self.assertEqual(list(novo.equipamentos.all()), [self.bioimpedancia])
 
     def test_pela_api(self):
@@ -182,7 +202,8 @@ class ReservaDeEquipamentos(Base):
         r = api.post("/api/agendamentos/", dados, format="json")
         self.assertEqual(r.status_code, 201, r.data)
         self.assertEqual(r.data["equipamentos"], [self.bioimpedancia.pk])
-        dados.update(profissional=self.bia.pk, espaco=self.consultorio2.pk)
+        outro_atleta = atleta("maria-equipamento", "Maria")
+        dados.update(atleta=outro_atleta.pk, profissional=self.bia.pk, espaco=self.consultorio2.pk)
         r = api.post("/api/agendamentos/", dados, format="json")
         self.assertEqual(r.status_code, 400)
         self.assertIn("equipamentos", r.data)
@@ -247,6 +268,8 @@ class AtletaNoAgendamento(Base):
         self.consultorio2 = Espaco.objects.create(nome="Consultório 2")
         self.consultorio2.especialidades.add(self.nutri)
         self.bia = profissional("bia", "Bia", "M003", self.nutri)
+        Disponibilidade.objects.create(profissional=self.nutricionista, dia_da_semana=hora(2, 9).weekday(),
+                           hora_inicio=hora(2, 8).time(), hora_fim=hora(2, 12).time())
 
     def pedido(self, atleta_alvo, **kw):
         dados = {"atleta": atleta_alvo.pk, "servico": self.consulta.pk, "profissional": self.nutricionista.pk,
@@ -306,5 +329,5 @@ class AtletaNoAgendamento(Base):
         self.assertEqual(r.status_code, 404)
 
     def test_reagendar_mantem_o_atleta(self):
-        novo = self.agendar(atleta=self.maria).reagendar(hora(3, 9))
+        novo = self.agendar(atleta=self.maria).reagendar(hora(2, 10))
         self.assertEqual(novo.atleta, self.maria)                    # o segundo não ficou gravado pela metade    

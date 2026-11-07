@@ -3,6 +3,8 @@ from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from estrutura.models import Servico
+
 from .models import Agendamento, Aviso, Bloqueio, Disponibilidade
 from .perfis import pode_agendar_para, profissional_de
 
@@ -48,6 +50,11 @@ class CancelarSerializer(serializers.Serializer):
 
 class ReagendarSerializer(serializers.Serializer):
     inicio = serializers.DateTimeField()
+
+
+class HorariosLivresQuerySerializer(serializers.Serializer):
+    servico = serializers.PrimaryKeyRelatedField(queryset=Servico.objects.filter(ativo=True))
+    dia = serializers.DateField()
 
 
 class AvisoSerializer(serializers.ModelSerializer):
