@@ -120,9 +120,9 @@ class Command(BaseCommand):
         self.lucas = atleta("lucas", "Lucas", "Ferreira", date(2012, 6, 15), responsavel=self.ana)
 
     # ---------------------------------------------------------------- agenda
-    def agendar(self, atleta, servico, profissional, espaco, inicio):
+    def agendar(self, atleta, servico, profissional, espaco, inicio, agora=None):
         a = Agendamento(atleta=atleta, servico=servico, profissional=profissional, espaco=espaco, inicio=inicio)
-        a.clean()  # as mesmas regras da API
+        a.clean(agora)  # as mesmas regras da API
         a.save()
         return a
 
@@ -143,7 +143,8 @@ class Command(BaseCommand):
             (self.maria, self.avaliacao, self.paulo, self.musculacao, as_(ontem, 10), None),
         ]
         for atleta, servico, profissional, espaco, inicio, falta in passados:
-            ag = self.agendar(atleta, servico, profissional, espaco, inicio)
+            # validado como se tivesse sido marcado na semana anterior (não se marca no passado)
+            ag = self.agendar(atleta, servico, profissional, espaco, inicio, agora=inicio - timedelta(days=7))
             status = Atendimento.Status.FALTA if falta else Atendimento.Status.PRESENCA
             Atendimento.registrar(ag, status, registra, falta or "")
 

@@ -17,16 +17,19 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# Configuração do servidor por variável de ambiente; sem nenhuma, vale a de desenvolvimento.
+# No servidor: DJANGO_DEBUG=0, DJANGO_SECRET_KEY=<chave longa e aleatória> e DJANGO_ALLOWED_HOSTS=<ip,domínio>.
+# https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-n@6#l%0s7m1ckt6yxo$u*)-bv=v(hpuf!g!giqa54$7io6gbpo'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("Com DJANGO_DEBUG=0, defina DJANGO_SECRET_KEY: a chave do repositório é pública.")
+    SECRET_KEY = "django-insecure-so-para-desenvolvimento"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["3.148.241.152", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "3.148.241.152,localhost,127.0.0.1").split(",")
 
 
 # Application definition

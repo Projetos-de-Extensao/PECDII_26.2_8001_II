@@ -149,7 +149,8 @@ class OfertaDaVaga(ComFila):
         self.assertTrue(Aviso.objects.filter(usuario=mae.usuario, texto__contains="Confirme até").exists())
 
 
-class FilaDaAula(ComFila):
+class ComTurma(ComFila):
+    # turma de pilates com 2 vagas na segunda às 10h (base de outros testes, sem testes próprios)
     def setUp(self):
         super().setUp()
         self.pilates = Servico.objects.create(nome="Pilates", especialidade=self.nutri, duracao_minutos=50, vagas=2)
@@ -164,6 +165,8 @@ class FilaDaAula(ComFila):
         agendamento.save()
         return agendamento
 
+
+class FilaDaAula(ComTurma):
     def test_segundo_atleta_entra_na_aula_com_vaga(self):
         self.inscrever(self.joao)
         self.inscrever(self.ana)
