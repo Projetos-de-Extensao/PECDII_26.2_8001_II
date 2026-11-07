@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from estrutura.models import Espaco, Especialidade, Servico,Equipamento
 from pkzlab.testes_comuns import hora, profissional,atleta
@@ -255,6 +255,20 @@ class Avisos(Base):
 
     def test_sem_login_nada(self):
         self.assertEqual(self.api.get("/api/avisos/").status_code, 401) 
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_cria_aviso_e_envia_email_ao_destinatario(self):
+        from django.core import mail
+
+        mail.outbox.clear()
+        aviso = Aviso.avisar(self.nina, "Sua consulta foi atualizada.")
+
+        self.assertTrue(Aviso.objects.filter(pk=aviso.pk, usuario=self.nina).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.nina.email])
+        self.assertEqual(mail.outbox[0].subject, "PKZ LAB: novo aviso")
+        self.assertEqual(mail.outbox[0].body, aviso.texto)
+
 class AtletaNoAgendamento(Base):
     def setUp(self):
         super().setUp()
@@ -360,4 +374,3 @@ class AulaEmGrupo(Base):
                         profissional=self.nutricionista, espaco=self.consultorio, aula=self.aula,
                         inicio=self.aula.inicio).full_clean()
         self.assertEqual(self.aula.vagas_restantes, 0)
-

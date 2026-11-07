@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -527,8 +528,16 @@ class Aviso(models.Model):
 
     @classmethod
     def avisar(cls, usuario, texto, link=""):
-       
-        return cls.objects.create(usuario=usuario, texto=texto[:300], link=link)
+        aviso = cls.objects.create(usuario=usuario, texto=texto[:300], link=link)
+        if usuario.email:
+            send_mail(
+                "PKZ LAB: novo aviso",
+                aviso.texto,
+                settings.DEFAULT_FROM_EMAIL,
+                [usuario.email],
+                fail_silently=False,
+            )
+        return aviso
 
     def marcar_como_lido(self):
         if not self.lido:
