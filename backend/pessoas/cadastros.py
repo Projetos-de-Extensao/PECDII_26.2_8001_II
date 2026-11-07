@@ -1,6 +1,7 @@
 """Cadastros que criam o login e o perfil juntos (ou nenhum dos dois)."""
 
 
+from django.contrib.auth import password_validation
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -10,7 +11,14 @@ from .models import Atleta, ConsentimentoLGPD, Funcionario, Responsavel
 VERSAO_TERMOS_ATUAL = "1.0"
 
 
-
+def _conferir_senha(senha, campo, email, nome, sobrenome):
+    # RNF05: a política de senha vale em toda porta de cadastro (API, cadastro público, comando...),
+    # por isso fica aqui e não em cada serializer
+    try:
+        password_validation.validate_password(
+            senha, User(username=email, email=email, first_name=nome, last_name=sobrenome))
+    except ValidationError as erro:
+        raise ValidationError({campo: erro.messages})
 
 
 @transaction.atomic
@@ -18,6 +26,7 @@ def cadastrar_funcionario(*, email, nome, sobrenome, senha_provisoria, matricula
     # UC04: o e-mail é o login, então não pode repetir (A1)
     if User.objects.filter(username__iexact=email).exists():
         raise ValidationError({"email": "E-mail já cadastrado."})
+    _conferir_senha(senha_provisoria, "senha_provisoria", email, nome, sobrenome)
     usuario = User.objects.create_user(
         username=email,
         email=email,
@@ -33,6 +42,7 @@ def _criar_login(email, nome, sobrenome, senha):
     # o e-mail é o login, então não pode repetir (UC02 A1)
     if User.objects.filter(username__iexact=email).exists():
         raise ValidationError({"email": "E-mail já cadastrado."})
+    _conferir_senha(senha, "senha", email, nome, sobrenome)
     return User.objects.create_user(username=email, email=email, password=senha,
                                     first_name=nome, last_name=sobrenome)
 

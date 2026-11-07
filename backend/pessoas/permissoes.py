@@ -1,4 +1,4 @@
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 
 
 GRUPOS_POR_PAPEL = {
@@ -29,11 +29,16 @@ def tem_permissao(usuario, codename):
     return bool(usuario.is_authenticated and usuario.has_perm(f"pessoas.{codename}"))
 
 
+def _grupo(nome, codenames):
+    grupo, criado = Group.objects.get_or_create(name=nome)
+    if criado:
+        # o grupo sumiu (apagado ou renomeado no /admin/): volta com as permissões do papel, não vazio
+        grupo.permissions.set(Permission.objects.filter(content_type__app_label="pessoas", codename__in=codenames))
+    return grupo
+
+
 def sincronizar_grupos(usuario):
-    grupos = {
-        nome: Group.objects.get_or_create(name=nome)[0]
-        for nome, _ in GRUPOS_POR_PAPEL.values()
-    }
+    grupos = {nome: _grupo(nome, codenames) for nome, codenames in GRUPOS_POR_PAPEL.values()}
     usuario.groups.remove(*grupos.values())
     if usuario.is_active:
         for papel, (nome, _) in GRUPOS_POR_PAPEL.items():

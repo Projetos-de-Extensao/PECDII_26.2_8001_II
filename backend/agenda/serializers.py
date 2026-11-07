@@ -17,9 +17,11 @@ def erro_da_api(erro):
 class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
-        fields = ["id", "protocolo","atleta", "servico", "profissional", "espaco", "inicio", "fim", "status",
+        fields = ["id", "protocolo", "atleta", "aula", "servico", "profissional", "espaco", "inicio", "fim", "status",
                   "justificativa", "substitui", "criado_em", "equipamentos", "lembrete_enviado_em"]
         read_only_fields = ["status", "justificativa", "substitui", "lembrete_enviado_em"]
+        # numa aula em grupo basta mandar a aula: serviço, profissional, sala e horário vêm dela
+        extra_kwargs = {campo: {"required": False} for campo in ("servico", "profissional", "espaco", "inicio")}
 
     def validate(self, attrs):
         # UC06: atleta marca para si, responsável para o dependente, equipe para qualquer um
@@ -33,6 +35,11 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             attrs.setdefault("profissional", aula.profissional)
             attrs.setdefault("espaco", aula.espaco)
             attrs.setdefault("inicio", aula.inicio)
+        else:
+            faltando = {campo: "Informe este campo (ou a aula)." for campo in ("servico", "profissional", "espaco", "inicio")
+                        if not attrs.get(campo)}
+            if faltando:
+                raise serializers.ValidationError(faltando)
 
         dados = {campo: valor for campo, valor in attrs.items() if campo != "equipamentos"}  # lista não entra no construtor
         try:

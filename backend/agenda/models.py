@@ -53,25 +53,21 @@ class Aula(models.Model):
                 inicio__lt=self.inicio + self.servico.duracao,
                 fim__gt=self.inicio,
             )
+            if self.pk:
+                conflito = conflito.exclude(aula_id=self.pk)  # os alunos da própria turma não são conflito
             if self.profissional_id:
-                conflito = conflito.filter(profissional_id=self.profissional_id)
-                if conflito.exists():
+                if conflito.filter(profissional_id=self.profissional_id).exists():
                     erros.setdefault("profissional", []).append("O profissional já tem um agendamento nesse horário.")
             if self.espaco_id:
-                conflito_espaco = Agendamento.objects.filter(
-                    status=Agendamento.Status.AGENDADO,
-                    espaco_id=self.espaco_id,
-                    inicio__lt=self.inicio + self.servico.duracao,
-                    fim__gt=self.inicio,
-                )
-                if conflito_espaco.exists():
+                if conflito.filter(espaco_id=self.espaco_id).exists():
                     erros.setdefault("espaco", []).append("A sala já está ocupada nesse horário.")
         if self.profissional_id and self.servico_id and hasattr(self.profissional, "funcionario"):
             if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
                 erros.setdefault("profissional", []).append("Este profissional está inativo.")
-        if self.servico_id and self.hora_inicio and self.hora_fim:
-            if self.hora_fim <= self.hora_inicio:
-                erros.setdefault("hora_fim", []).append("O fim precisa ser depois do início.")
+        if self.servico_id and self.dia and self.hora_inicio:
+            # o fim vem da duração do serviço (o hora_fim gravado pode ser de antes desta edição)
+            if (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).date() != self.dia:
+                erros.setdefault("hora_inicio", []).append("A aula precisa terminar no mesmo dia.")
         if erros:
             raise ValidationError(erros)
 
@@ -94,7 +90,7 @@ class Aula(models.Model):
         usados += sum(1 for inscricao in self.inscricoes.filter(status=Inscricao.Status.CONFIRMADA)
                       if not inscricao.agendamento_id or inscricao.agendamento.aula_id != self.pk)
         # UC19: vaga oferecida a quem estava na lista de espera fica guardada até ele responder
-        usados += ListaEspera.objects.filter(status=ListaEspera.Status.OFERECIDA, vaga__aula_id=self.pk).count()
+        usados += ListaEspera.objects.filter(status=ListaEspera.Status.OFERECIDA, aula_id=self.pk).count()
         return max(total - usados, 0)
 
     @property
@@ -102,9 +98,9 @@ class Aula(models.Model):
         return self.vagas_restantes <= 0 if self.servico_id else True
 
     def save(self, *args, **kwargs):
-        if self.servico_id and self.hora_inicio and (not self.hora_fim or self.hora_fim == self.hora_inicio):
-            final = datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao
-            self.hora_fim = final.time()
+        # recalcula sempre: mudar o início ou o serviço numa edição muda o fim também
+        if self.servico_id and self.dia and self.hora_inicio:
+            self.hora_fim = (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).time()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -144,13 +140,19 @@ class Agendamento(models.Model):
     class Meta:
         ordering = ["inicio"]
 
-    def clean(self):
+    def clean(self, agora=None):
         erros = {}
         def adicionar_erro(campo, mensagem):
             erros.setdefault(campo, []).append(mensagem)
 
+        # UC06 e UC08: só se marca (ou remarca) para um horário que ainda não começou
+        if self.pk is None and self.inicio and self.inicio <= (agora or timezone.now()):
+            adicionar_erro("inicio", "Esse horário já passou.")
+
         if self.aula_id:
             aula = self.aula
+            if not aula.ativo and self.pk is None:
+                adicionar_erro("aula", "Esta aula foi desativada.")
             if self.servico_id and self.servico_id != aula.servico_id:
                 adicionar_erro("servico", "O agendamento da aula precisa usar o mesmo serviço da aula.")
             if self.profissional_id and self.profissional_id != aula.profissional_id:
@@ -250,7 +252,8 @@ class Agendamento(models.Model):
         self.justificativa = justificativa
         self.save(update_fields=["status", "justificativa"])
         Aviso.avisar(self.profissional.funcionario.usuario,
-                     f"Atendimento {self.protocolo} de {self.inicio:%d/%m às %H:%M} foi cancelado: {justificativa}")
+                     f"Atendimento {self.protocolo} de {timezone.localtime(self.inicio):%d/%m às %H:%M} "
+                     f"foi cancelado: {justificativa}")
         ListaEspera.oferecer_vaga(self)  # UC19: a vaga liberada vai para o primeiro da fila
 
     @transaction.atomic
@@ -319,16 +322,48 @@ class Inscricao(models.Model):
         ordering = ["aula__dia", "aula__hora_inicio", "atleta__usuario__first_name"]
         unique_together = ("aula", "atleta")
 
+    def _gravada(self):
+        # (status, aula_id) como está no banco agora; None se a inscrição ainda não foi gravada
+        if self.pk is None:
+            return None
+        return Inscricao.objects.filter(pk=self.pk).values_list("status", "aula_id").first()
+
+    def _ocupava_vaga(self, gravada):
+        return gravada is not None and gravada[0] == self.Status.CONFIRMADA
+
     def clean(self):
         erros = {}
         if self.agendamento_id and self.agendamento.aula_id and self.agendamento.aula_id != self.aula_id:
             erros.setdefault("agendamento", []).append("A inscrição deve referenciar o mesmo agendamento da aula.")
-        if self.status == self.Status.CONFIRMADA and self.aula.lotada and not self.pk:
-            erros.setdefault("aula", []).append("A turma está lotada.")
-        if self.pk is None and Inscricao.objects.filter(aula_id=self.aula_id, atleta_id=self.atleta_id, status=self.Status.CONFIRMADA).exists():
-            erros.setdefault("atleta", []).append("Este atleta já está inscrito nesta aula.")
+        if self.status == self.Status.CONFIRMADA:
+            gravada = self._gravada()
+            # quem já ocupava a vaga nesta turma não conta de novo; quem entra agora (inscrição nova,
+            # reconfirmação depois de cancelar ou troca de turma) precisa de vaga livre
+            if not (self._ocupava_vaga(gravada) and gravada[1] == self.aula_id) and self.aula.lotada:
+                erros.setdefault("aula", []).append("A turma está lotada.")
+            repetida = Inscricao.objects.filter(aula_id=self.aula_id, atleta_id=self.atleta_id,
+                                                status=self.Status.CONFIRMADA).exclude(pk=self.pk)
+            if repetida.exists():
+                erros.setdefault("atleta", []).append("Este atleta já está inscrito nesta aula.")
         if erros:
             raise ValidationError(erros)
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        gravada = self._gravada()
+        super().save(*args, **kwargs)
+        # UC19: cancelou ou trocou de turma -> a vaga que ele ocupava vai para o primeiro da lista de espera
+        if self._ocupava_vaga(gravada) and (self.status != self.Status.CONFIRMADA or gravada[1] != self.aula_id):
+            ListaEspera.oferecer_vaga(aula=Aula.objects.get(pk=gravada[1]))
+
+    @transaction.atomic
+    def delete(self, *args, **kwargs):
+        ocupava = self._ocupava_vaga(self._gravada())
+        aula = self.aula
+        resultado = super().delete(*args, **kwargs)
+        if ocupava:
+            ListaEspera.oferecer_vaga(aula=aula)
+        return resultado
 
     def __str__(self):
         return f"{self.atleta} -> {self.aula}"
@@ -425,14 +460,17 @@ class ListaEspera(models.Model):
                                           inicio__lt=fim, fim__gt=self.inicio).exists()
 
     @classmethod
-    def oferecer_vaga(cls, vaga, agora=None):
-        # vaga = o agendamento que liberou o horário. Devolve a espera que recebeu a oferta, ou None.
+    def oferecer_vaga(cls, vaga=None, agora=None, aula=None):
+        # vaga = o agendamento que liberou o horário. Numa aula em grupo, a vaga também pode abrir por uma
+        # inscrição cancelada, que não tem agendamento: aí vem só a aula. Devolve a espera que recebeu a
+        # oferta, ou None.
         agora = agora or timezone.now()
-        prazo = Configuracao.atual().prazo_para_confirmar(vaga.inicio, agora)
+        aula = aula or (vaga.aula if vaga and vaga.aula_id else None)
+        prazo = Configuracao.atual().prazo_para_confirmar(aula.inicio if aula else vaga.inicio, agora)
         if prazo <= agora:
             return None  # A3: em cima da hora, a vaga fica livre para qualquer um
-        if vaga.aula_id:
-            fila = cls.objects.filter(aula_id=vaga.aula_id)
+        if aula:
+            fila = cls.objects.filter(aula=aula)
         else:
             fila = cls.objects.filter(aula__isnull=True, servico_id=vaga.servico_id,
                                       profissional_id=vaga.profissional_id, inicio=vaga.inicio)
@@ -455,6 +493,10 @@ class ListaEspera(models.Model):
         for usuario in quem_avisar(self.atleta):
             Aviso.avisar(usuario, texto)
 
+    def _repassar_vaga(self, agora=None):
+        # a vaga que estava com este atleta passa para o próximo da mesma fila
+        ListaEspera.oferecer_vaga(self.vaga, agora, aula=self.aula)
+
     @transaction.atomic
     def confirmar(self, agora=None):
         # a vaga vira um agendamento normal (passo 5 do UC19)
@@ -465,9 +507,10 @@ class ListaEspera(models.Model):
             raise ValidationError("O prazo para confirmar essa vaga já acabou.")
         self.status = self.Status.CONFIRMADA  # primeiro sai da reserva, senão a própria oferta bloquearia a vaga
         self.save(update_fields=["status"])
-        vaga = self.vaga
-        novo = Agendamento(atleta=self.atleta, servico=vaga.servico, profissional=vaga.profissional,
-                           espaco=vaga.espaco, aula=vaga.aula, inicio=vaga.inicio)
+        # numa aula, o horário e a sala são os da turma (a vaga pode ter vindo de uma inscrição, sem agendamento)
+        espaco = self.aula.espaco if self.aula_id else self.vaga.espaco
+        novo = Agendamento(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
+                           espaco=espaco, aula=self.aula, inicio=self.inicio)
         try:
             novo.clean()
         except ValidationError:
@@ -484,7 +527,7 @@ class ListaEspera(models.Model):
             raise ValidationError("Não há vaga oferecida para recusar.")
         self.status = self.Status.RECUSADA
         self.save(update_fields=["status"])
-        ListaEspera.oferecer_vaga(self.vaga, agora)  # passa para o próximo da fila
+        self._repassar_vaga(agora)  # passa para o próximo da fila
 
     @transaction.atomic
     def sair(self, agora=None):
@@ -495,7 +538,7 @@ class ListaEspera(models.Model):
         self.status = self.Status.SAIU
         self.save(update_fields=["status"])
         if tinha_vaga:
-            ListaEspera.oferecer_vaga(self.vaga, agora)
+            self._repassar_vaga(agora)
 
     @classmethod
     def vencer_ofertas(cls, agora=None):
@@ -503,14 +546,14 @@ class ListaEspera(models.Model):
         agora = agora or timezone.now()
         vencidas = cls.objects.filter(status=cls.Status.OFERECIDA, prazo__lte=agora).select_related(
             "atleta__usuario", "atleta__responsavel__usuario", "servico", "profissional__funcionario__usuario",
-            "vaga")
+            "vaga", "aula")
         total = 0
         for espera in vencidas:
             with transaction.atomic():
                 espera.status = cls.Status.VENCIDA
                 espera.save(update_fields=["status"])
                 espera.avisar(f"O prazo para confirmar a vaga de {espera.descricao()} acabou.")
-                cls.oferecer_vaga(espera.vaga, agora)
+                espera._repassar_vaga(agora)
             total += 1
         return total
 
@@ -632,7 +675,8 @@ class Bloqueio(models.Model):
         return afetados.distinct()
 
     def __str__(self):
-        return f"{self.alvo} bloqueado de {self.inicio:%d/%m %H:%M} a {self.fim:%d/%m %H:%M}"
+        return (f"{self.alvo} bloqueado de {timezone.localtime(self.inicio):%d/%m %H:%M} "
+                f"a {timezone.localtime(self.fim):%d/%m %H:%M}")
 
 class Atendimento(models.Model):
     # UC11: o que aconteceu no horário marcado. Um registro por agendamento, gravado pelo profissional

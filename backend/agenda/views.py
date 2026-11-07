@@ -115,7 +115,7 @@ class AtendimentoViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
 
 
-@extend_schema(parameters=[OpenApiParameter("lido", bool, description="false: só os que ainda não foram lidos.")])
+@extend_schema(parameters=[OpenApiParameter("profissional", int, description="Só as aulas deste profissional.")])
 class AulaViewSet(viewsets.ModelViewSet):
     queryset = Aula.objects.select_related("servico", "profissional__funcionario__usuario", "espaco")
     serializer_class = AulaSerializer
@@ -138,8 +138,9 @@ class InscricaoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         usuario = self.request.user
-        if not tem_permissao(usuario, "ver_todas_as_pessoas") and not profissional_de(usuario):
-            qs = qs.filter(atleta__usuario_id=usuario.pk)
+        if not tem_permissao(usuario, "ver_todas_as_pessoas"):
+            # o atleta vê as dele; o responsável, as dos dependentes (as mesmas que ele pode criar)
+            qs = qs.filter(Q(atleta__usuario_id=usuario.pk) | Q(atleta__responsavel__usuario_id=usuario.pk))
         profissional = self.request.query_params.get("profissional")
         if profissional and profissional.isdigit():
             qs = qs.filter(aula__profissional=profissional)
@@ -202,6 +203,7 @@ class ListaEsperaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         return Response(ListaEsperaSerializer(espera).data)
 
 
+@extend_schema(parameters=[OpenApiParameter("lido", bool, description="false: só os que ainda não foram lidos.")])
 class AvisoViewSet(viewsets.ReadOnlyModelViewSet):
     # UC20: cada pessoa vê só os próprios avisos e marca como lido
     queryset = Aviso.objects.all()
