@@ -2,53 +2,29 @@
 id: iteração7
 title: Iteração 7
 ---
-# Iteração 7 (07/11/24 à 20/10/2024)
+# Iteração 7 (07/11/2026 à 20/11/2026)
+
+**Foco:** fechar a documentação e continuar o back-end.
 
 ## Planejamento de Iteração
 
-#### Presentes na reunião: XXXXX
+#### Presentes na reunião: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ### Lista de Tarefas da Iteração
 
-| Tarefa                                                                                       | Responsabilidade |
-| -------------------------------------------------------------------------------------------- | ---------------- |
-| Decidir o nome o projeto.                                                                    | Todos            |
-| Criar o repositório nos padrões (Organizar wiki).                                          | Matheus          |
-| Criar issues no GitHub / ZenHub                                                              | Renan            |
-| Configuração do grupo do Telegram(configurar bot).                                         | Moacir           |
-| Estudar e escolher as metodologias.                                                          | Todos            |
-| [Documento de visão](https://github.com/xxx/xxx.md)                                            | XXX e XXXXX      |
-| Elaborar[5w2H](https://github.com/xxx/xxx.md)                                                   | XXX e XXXXX      |
-| [Mapas Mentais](https://github.com/xxx/xxx.md)                                                  | XXX e XXXXX      |
-| [Brainstorming](https://github.com/UnBArqDsw/2020.1_G7_TCM/blob/master/docs/base/Brainstorm.md) | Todos            |
-| [Entrevistas](https://github.com/xxx/xxx.md)                                                    | XXX e XXXXX      |
-| [Prototipação.](https://github.com/xxx/xxx.md)                                                | XXX e XXXXX      |
+| Tarefa | Responsabilidade | Situação |
+| -- | -- | -- |
+| Preencher as iterações 1 a 7 com tarefas e datas reais | Todos | Em andamento |
+| [Plano de transição](../Transicao/plano_de_transicao.md): implantação e testes de aceitação | Todos | Em andamento |
+| [Bibliografia](../Disciplina/Bibliografia.md) (link do menu quebrado) | Todos | Em andamento |
+| README com "Sobre" e "Instalação" só com o que já existe | Todos | Em andamento |
+| Validar o fluxo de agendamento com a coordenação do PKZ LAB | Todos | A fazer |
+| [Página da API](../API/index.md): link do Swagger, autenticação e exemplos | Todos | Em andamento |
 
 ## Sprint Retrospective/Review Meeting
 
-#### Presentes na reunião: XXXX
-
-### Dividas da Iteração
+A preencher ao fim da iteração (20/11/2026).
 
 ### Riscos Encontrados
 
-- Nenhum: Plano de gerenciamento de riscos não implementado.
-
-### Pontos Positivos
-
-![pontos positivos](../assets/Iterações/S1-positivos.png)
-
-### Pontos Negativos
-
-![pontos negativos](../assets/Iterações/S1-negativos.png)
-
-### O que podemos melhorar?
-
-- Ter mais foco na reuniões para evitar o desperdício de tempo.
-- A equipe deve ter mais autonomia em relação à falta de membros.
-- Podemos utilizar algo ferramenta de timebox para maior efetividade nas reuniões, sugestão: https://timebox.cedrotech.com/
-
-### Ferramentas utilizadas
-
-- Reunião: [Hangouts](https://hangouts.google.com/)
-- Colheita dos pontos: [Mentimeter](https://www.mentimeter.com/)
+- Sem validação do stakeholder ainda; o aceite depende da agenda do PKZ LAB.

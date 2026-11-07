@@ -2,54 +2,45 @@
 id: iteração1
 title: Iteração 1
 ---
-# Iteração 1 (15/08/24 à 28/08/2024)
+# Iteração 1 (15/08/2026 à 28/08/2026)
+
+**Foco:** entender o problema do PKZ LAB e definir o escopo.
 
 ## Planejamento de Iteração
 
-#### Presentes na reunião: XXXXX
+#### Presentes na reunião: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ### Lista de Tarefas da Iteração
 
-| Tarefa                                                                                       | Responsabilidade |
-| -------------------------------------------------------------------------------------------- | ---------------- |
-| Decidir o nome o projeto.                                                                    | Todos            |
-| Criar o repositório nos padrões (Organizar wiki).                                          | Matheus          |
-| Criar issues no GitHub / ZenHub                                                              | Renan            |
-| Configuração do grupo do Telegram(configurar bot).                                         | Moacir           |
-| Estudar e escolher as metodologias.                                                          | Todos            |
-| [Documento de visão](https://github.com/xxx/xxx.md)                                            | XXX e XXXXX      |
-| Elaborar[5w2H](https://github.com/xxx/xxx.md)                                                   | XXX e XXXXX      |
-| [Mapas Mentais](https://github.com/xxx/xxx.md)                                                  | XXX e XXXXX      |
-| [Brainstorming](https://github.com/UnBArqDsw/2020.1_G7_TCM/blob/master/docs/base/Brainstorm.md) | Todos            |
-| [Entrevistas](https://github.com/xxx/xxx.md)                                                    | XXX e XXXXX      |
-| [Prototipação.](https://github.com/xxx/xxx.md)                                                | XXX e XXXXX      |
+| Tarefa | Responsabilidade | Situação |
+| -- | -- | -- |
+| Definir o tema e o stakeholder (PKZ LAB, Barra da Tijuca/RJ) | Todos | Concluída |
+| Criar o repositório e publicar a documentação com MkDocs (GitHub Actions) | Todos | Concluída |
+| [Pesquisa](../Iniciacao/pesquisa.md): contexto, escopo, mercado e legislação (LGPD e ECA) | Todos | Concluída |
+| [5W2H](../Iniciacao/5w2h.md) v1.0 (visão geral do projeto) | Todos | Concluída em 24/08 |
 
 ## Sprint Retrospective/Review Meeting
 
-#### Presentes na reunião: XXXX
+### Dívidas da Iteração
 
-### Dividas da Iteração
+- Documentos de Visão e de Metodologia ainda são templates sem conteúdo.
 
 ### Riscos Encontrados
 
-- Nenhum: Plano de gerenciamento de riscos não implementado.
+- Escopo amplo demais para um CT inteiro. Mitigação: o 5W2H deixou fora o módulo financeiro e a integração com sensores.
 
 ### Pontos Positivos
 
-![pontos positivos](../assets/Iterações/S1-positivos.png)
+- Stakeholder real, com contexto e legislação (LGPD e ECA) levantados desde o início.
 
 ### Pontos Negativos
 
-![pontos negativos](../assets/Iterações/S1-negativos.png)
-
+- Levantamento feito só por discussão da equipe, sem conversa com usuários do CT.
 
 ### O que podemos melhorar?
 
-- Ter mais foco na reuniões para evitar o desperdício de tempo.
-- A equipe deve ter mais autonomia em relação à falta de membros.
-- Podemos utilizar algo ferramenta de timebox para maior efetividade nas reuniões, sugestão: https://timebox.cedrotech.com/
+- Agendar uma conversa com a coordenação do PKZ LAB para validar o entendimento.
 
 ### Ferramentas utilizadas
 
-- Reunião: [Hangouts](https://hangouts.google.com/)
-- Colheita dos pontos: [Mentimeter](https://www.mentimeter.com/)
+- GitHub (repositório e issues), MkDocs Material (documentação) e PlantUML (diagramas).

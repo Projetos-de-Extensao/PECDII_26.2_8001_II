@@ -26,8 +26,21 @@ nav:
       - Github Workflows: Construcao/github_workflows.md
       - GitHub Projects: Construcao/github_projects.md
       - CodeSpace: Construcao/codespace.md
+  - API:
+      - Visão geral: API/index.md
+  - Iterações:
+      - Iteração 1: Iteração/interacao1.md
+      - Iteração 2: Iteração/interacao2.md
+      - Iteração 3: Iteração/interacao3.md
+      - Iteração 4: Iteração/interacao4.md
+      - Iteração 5: Iteração/interacao5.md
+      - Iteração 6: Iteração/interacao6.md
+      - Iteração 7: Iteração/interacao7.md
   - Transição:
       - Index: Transicao/index.md
+      - Plano de Transição: Transicao/plano_de_transicao.md
+
+  - Bibliografia: Disciplina/Bibliografia.md
 
   - Bibliografia: Disciplina/Bibliografia.md
 

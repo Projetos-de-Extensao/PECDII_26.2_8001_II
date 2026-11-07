@@ -2,53 +2,45 @@
 id: iteração2
 title: Iteração 2
 ---
-# Iteração 2 (29/09/24 à 11/09/2024)
+# Iteração 2 (29/08/2026 à 11/09/2026)
+
+**Foco:** transformar o escopo em um primeiro desenho do produto.
 
 ## Planejamento de Iteração
 
-#### Presentes na reunião: XXXXX
+#### Presentes na reunião: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ### Lista de Tarefas da Iteração
 
-| Tarefa                                                                                       | Responsabilidade |
-| -------------------------------------------------------------------------------------------- | ---------------- |
-| Decidir o nome o projeto.                                                                    | Todos            |
-| Criar o repositório nos padrões (Organizar wiki).                                          | Matheus          |
-| Criar issues no GitHub / ZenHub                                                              | Renan            |
-| Configuração do grupo do Telegram(configurar bot).                                         | Moacir           |
-| Estudar e escolher as metodologias.                                                          | Todos            |
-| [Documento de visão](https://github.com/xxx/xxx.md)                                            | XXX e XXXXX      |
-| Elaborar[5w2H](https://github.com/xxx/xxx.md)                                                   | XXX e XXXXX      |
-| [Mapas Mentais](https://github.com/xxx/xxx.md)                                                  | XXX e XXXXX      |
-| [Brainstorming](https://github.com/UnBArqDsw/2020.1_G7_TCM/blob/master/docs/base/Brainstorm.md) | Todos            |
-| [Entrevistas](https://github.com/xxx/xxx.md)                                                    | XXX e XXXXX      |
-| [Prototipação.](https://github.com/xxx/xxx.md)                                                | XXX e XXXXX      |
+| Tarefa | Responsabilidade | Situação |
+| -- | -- | -- |
+| [Protótipo de baixa fidelidade](../Iniciacao/prototipo_baixa_fidelidade.md): login, cadastro e agendamento (v1.0 a 1.2) | Filipe | Concluída em 01/09 |
+| [Mapa mental](../Iniciacao/mapa_mental.md) da plataforma e definição do MVP | Todos | Concluída em 08/09 |
+| [5W2H](../Iniciacao/5w2h.md) v2.0 (visão do produto: agendamento como núcleo) | Todos | Concluída em 09/09 |
 
 ## Sprint Retrospective/Review Meeting
 
-#### Presentes na reunião: XXXX
+### Dívidas da Iteração
 
-### Dividas da Iteração
+- Autores do mapa mental não registrados no versionamento.
 
 ### Riscos Encontrados
 
-- Nenhum: Plano de gerenciamento de riscos não implementado.
+- Protótipo desenhado antes de ouvir os usuários, com risco de retrabalho nas telas.
 
 ### Pontos Positivos
 
-![pontos positivos](../assets/Iterações/S1-positivos.png)
+- Decisão de que o agendamento com verificação de disponibilidade é o núcleo do sistema.
+- Wireframes em PlantUML, versionados junto ao código.
 
 ### Pontos Negativos
 
-![pontos negativos](../assets/Iterações/S1-negativos.png)
+- Protótipo sem validação externa.
 
 ### O que podemos melhorar?
 
-- Ter mais foco na reuniões para evitar o desperdício de tempo.
-- A equipe deve ter mais autonomia em relação à falta de membros.
-- Podemos utilizar algo ferramenta de timebox para maior efetividade nas reuniões, sugestão: https://timebox.cedrotech.com/
+- Registrar sempre os autores no versionamento de cada documento.
 
 ### Ferramentas utilizadas
 
-- Reunião: [Hangouts](https://hangouts.google.com/)
-- Colheita dos pontos: [Mentimeter](https://www.mentimeter.com/)
+- GitHub, MkDocs Material e PlantUML (Salt para os wireframes).
