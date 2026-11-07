@@ -1,5 +1,7 @@
 # PKZ LAB — Back-end
 
+[![Testes](https://github.com/Projetos-de-Extensao/PECDII_26.2_8001_II/actions/workflows/testes.yml/badge.svg)](https://github.com/Projetos-de-Extensao/PECDII_26.2_8001_II/actions/workflows/testes.yml)
+
 **Disciplina:** IBM8936 (Projeto de Extensão) · **Grupo II:** Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
 
 ## Sobre
@@ -40,12 +42,38 @@ python manage.py runserver
 
 A API usa o login por sessão do Django: entre pelo `/admin/` ou por `/api/auth/login/` antes de chamar os endpoints.
 
+### Dados de exemplo
+
+Para apresentar o sistema sem cadastrar tudo à mão:
+
+```bash
+cd backend
+python manage.py popular_demo
+```
+
+O comando cria salas, serviços, equipamentos, a equipe com os turnos de atendimento, atletas, agendamentos passados (com presença ou falta) e futuros, uma aula de pilates com inscritos, avaliações físicas e planos de treino. Se os dados já existirem, ele não faz nada.
+
+**Todos os logins de exemplo usam a senha `senha12345`** (só para demonstração, não use em produção):
+
+| Login | Papel |
+|---|---|
+| `carla@pkzlab.demo` | administração e fisioterapeuta (entra no `/admin/`) |
+| `rita@pkzlab.demo` | recepção |
+| `nina@pkzlab.demo` | nutricionista |
+| `teo@pkzlab.demo` | personal trainer |
+| `paulo@pkzlab.demo` | preparador físico |
+| `lia@pkzlab.demo` | instrutora de pilates |
+| `joao@pkzlab.demo`, `maria@pkzlab.demo`, `pedro@pkzlab.demo` | atletas |
+| `ana@pkzlab.demo` | responsável pelo atleta menor `lucas@pkzlab.demo` |
+
 ### Testes
 
 ```bash
 cd backend
-python manage.py test estrutura pessoas agenda
+python manage.py test
 ```
+
+O GitHub Actions roda os mesmos testes a cada push e pull request (`.github/workflows/testes.yml`). O badge no topo deste README mostra se a última execução passou.
 
 ### Rodar a documentação localmente
 
