@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta
 
@@ -9,6 +10,8 @@ from django.utils import timezone
 
 from estrutura.models import Configuracao, Espaco, Servico,Equipamento
 from pessoas.models import Profissional,Atleta
+
+logger = logging.getLogger(__name__)
 
 
 def novo_protocolo():
@@ -530,13 +533,13 @@ class Aviso(models.Model):
     def avisar(cls, usuario, texto, link=""):
         aviso = cls.objects.create(usuario=usuario, texto=texto[:300], link=link)
         if usuario.email:
-            send_mail(
-                "PKZ LAB: novo aviso",
-                aviso.texto,
-                settings.DEFAULT_FROM_EMAIL,
-                [usuario.email],
-                fail_silently=False,
-            )
+            # o aviso na tela é o principal; se o e-mail falhar (servidor fora, senha errada...), só registra no log.
+            # Sem isso, a falha derrubava quem chamou: o cancelamento dava erro 500 sem oferecer a vaga à
+            # lista de espera, e o lembrete era criado de novo a cada 5 minutos.
+            try:
+                send_mail("PKZ LAB: novo aviso", aviso.texto, settings.DEFAULT_FROM_EMAIL, [usuario.email])
+            except Exception:
+                logger.exception("Não foi possível enviar o e-mail do aviso %s para %s", aviso.pk, usuario.email)
         return aviso
 
     def marcar_como_lido(self):
