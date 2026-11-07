@@ -24,6 +24,9 @@ router.register("atendimentos", AtendimentoViewSet)
 router.register("avisos", AvisoViewSet)
 router.register("disponibilidades", DisponibilidadeViewSet)
 router.register("bloqueios", BloqueioViewSet)
+router.register("avaliacoes", AvaliacaoFisicaViewSet)
+router.register("exercicios", ExercicioViewSet)
+router.register("planos", PlanoTreinoViewSet)
 router.register("horarios-livres", HorariosLivresViewSet, basename="horarios-livres")
 
 urlpatterns = [

@@ -254,14 +254,15 @@ Refinar o modelo conceitual para uma estrutura orientada à implementação.
 ## Organização do código em apps (Django)
 
 <p align="justify">
-As classes foram divididas em três apps do Django, um por assunto. Cada app reúne só o que tem a ver com ele (alta coesão) e a dependência entre eles vai num sentido só: <b>agenda</b> usa <b>pessoas</b> e <b>estrutura</b>, <b>pessoas</b> usa <b>estrutura</b>, e o contrário nunca acontece (baixo acoplamento). Assim cada integrante pode trabalhar num app sem mexer no código dos outros, e os testes de cada parte rodam separados.
+As classes foram divididas em quatro apps do Django, um por assunto. Cada app reúne só o que tem a ver com ele (alta coesão) e a dependência entre eles vai num sentido só: <b>acompanhamento</b> usa <b>pessoas</b> e <b>agenda</b>, <b>agenda</b> usa <b>pessoas</b> e <b>estrutura</b>, <b>pessoas</b> usa <b>estrutura</b>, e o contrário nunca acontece (baixo acoplamento). Assim cada integrante pode trabalhar num app sem mexer no código dos outros, e os testes de cada parte rodam separados.
 </p>
 
 | App | Classes | O que faz |
 | -- | -- | -- |
-| <b>estrutura</b> | Especialidade, Espaço, Serviço, Configuração | O que o CT oferece e onde: salas ligadas às especialidades, modalidades com duração e vagas, ajustes do administrador |
+| <b>estrutura</b> | Especialidade, Espaço, Serviço, Equipamento, Configuração | O que o CT oferece e onde: salas ligadas às especialidades, modalidades com duração e vagas, ajustes do administrador |
 | <b>pessoas</b> | Funcionário, Papel (abstrata), Profissional, Recepção, Administrador, Atleta, Responsável, Consentimento LGPD | Quem é quem: um login e uma matrícula por pessoa, papéis que se acumulam e definem as permissões |
-| <b>agenda</b> | Disponibilidade, Bloqueio, Aula (grade), Agendamento, Lista de espera, Aviso | O dia a dia: horários livres, grade de aulas, agendamentos, lista de espera com confirmação, avisos e lembretes |
+| <b>agenda</b> | Disponibilidade, Bloqueio, Aula (grade), Agendamento, Atendimento, Lista de espera, Aviso | O dia a dia: horários livres, grade de aulas, agendamentos, lista de espera com confirmação, avisos e lembretes |
+| <b>acompanhamento</b> | Avaliação física, Exercício, Plano de treino | O acompanhamento técnico do atleta: testes comparados com a avaliação anterior e planos de treino com histórico de versões |
 
 <p align="justify">
 A classe <b>Papel</b> é abstrata: não vira tabela, só reúne o que todo papel tem em comum. O <b>Usuário</b> do diagrama corresponde ao login do próprio Django; no código, cada perfil se liga a ele por uma associação 1 para 1, o que permite que a mesma pessoa tenha mais de um papel (por exemplo, a coordenadora que também atende como fisioterapeuta).
