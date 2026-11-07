@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
 
 
 @admin.register(Aula)
@@ -26,6 +26,17 @@ class InscricaoAdmin(admin.ModelAdmin):
     list_display = ("aula", "atleta", "status", "criado_em")
     list_filter = ("status", "aula__servico")
     search_fields = ("atleta__usuario__username", "aula__servico__nome")
+
+
+@admin.register(ListaEspera)
+class ListaEsperaAdmin(admin.ModelAdmin):
+    # UC19: a fila é consultada aqui; oferecer, confirmar, recusar e vencer é com o sistema e a API
+    list_display = ("atleta", "servico", "profissional", "aula", "inicio", "status", "posicao", "prazo", "criado_em")
+    list_filter = ("status", "servico", "profissional")
+    search_fields = ("atleta__usuario__username", "atleta__usuario__first_name")
+    readonly_fields = ("vaga", "prazo", "agendamento", "criado_em")
+
+
 @admin.register(Aviso)
 class AvisoAdmin(admin.ModelAdmin):
     # histórico do que foi avisado a cada pessoa: só leitura

@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from estrutura.models import Servico
 
-from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
 from .perfis import pode_agendar_para, profissional_de
 
 def erro_da_api(erro):
@@ -90,6 +90,37 @@ class InscricaoSerializer(serializers.ModelSerializer):
             Inscricao(pk=self.instance.pk if self.instance else None, **dados).clean()
         except DjangoValidationError as e:
             raise erro_da_api(e)
+        return attrs
+
+
+class ListaEsperaSerializer(serializers.ModelSerializer):
+    # UC19: para entrar na fila, mande a aula (aula em grupo) ou serviço, profissional e início (individual)
+    posicao = serializers.IntegerField(read_only=True, allow_null=True,
+                                       help_text="Posição na fila (1 = o próximo). Vazio se não está aguardando.")
+
+    class Meta:
+        model = ListaEspera
+        fields = ["id", "atleta", "servico", "profissional", "aula", "inicio", "status", "posicao", "vaga", "prazo",
+                  "agendamento", "criado_em"]
+        read_only_fields = ["status", "vaga", "prazo", "agendamento", "criado_em"]
+        extra_kwargs = {"servico": {"required": False}, "profissional": {"required": False},
+                        "inicio": {"required": False}}
+
+    def validate(self, attrs):
+        if not pode_agendar_para(self.context["request"].user, attrs["atleta"]):
+            raise serializers.ValidationError(
+                {"atleta": "Você só pode entrar na lista para você mesmo ou para os seus dependentes."})
+        if not attrs.get("aula"):
+            faltando = {campo: "Informe este campo (ou a aula)." for campo in ("servico", "profissional", "inicio")
+                        if not attrs.get(campo)}
+            if faltando:
+                raise serializers.ValidationError(faltando)
+        espera = ListaEspera(**attrs)
+        try:
+            espera.clean()  # numa aula, o clean copia serviço, profissional e horário dela
+        except DjangoValidationError as e:
+            raise erro_da_api(e)
+        attrs.update(servico=espera.servico, profissional=espera.profissional, inicio=espera.inicio)
         return attrs
 
 
