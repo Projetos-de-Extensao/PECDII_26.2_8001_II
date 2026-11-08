@@ -7,13 +7,16 @@ title: Diagrama de Classes
 
 ### Objetivo
 
-Este diagrama representa os principais conceitos do domínio do PKZ LAB, sistema back-end para apoiar as rotinas de um centro de treinamento. O modelo conceitual organiza os perfis de usuário, os agendamentos e recursos, e o acompanhamento técnico dos atletas, evidenciando seus relacionamentos com base nos requisitos, casos de uso e protótipo. Na seção conceitual, as classes são intencionalmente apresentadas sem atributos e métodos; a seção 3 detalha a visão de especificação conforme o código.
+Este documento apresenta duas visões complementares do domínio do PKZ LAB: o modelo conceitual, que organiza os conceitos e regras de negócio, e o modelo de especificação, refinado para corresponder aos modelos Django e às interfaces REST existentes. A versão 0.2 atualiza as relações, atributos, operações, permissões e rastreabilidade para refletir o projeto implementado em 07/11/2026.
 
 ### Componentes do Diagrama de Classes
 
-Este documento define um modelo para:
+O documento contém duas vistas complementares do mesmo domínio:
 
-1. #### Diagrama conceitual
+- **Conceitual**: conceitos e relações, sem atributos, métodos ou detalhes de framework;
+- **Especificação**: estrutura e operações relevantes conforme a implementação Django/DRF.
+
+### 1) Diagrama de Classes Conceitual
 
 As classes são apresentadas sem atributos e sem métodos. O diagrama contempla os conceitos de pessoas, agendamentos, recursos e acompanhamento técnico identificados nos casos de uso.
 
@@ -25,7 +28,7 @@ skinparam monochrome true
 skinparam shadowing false
 
 package "Pessoas" {
-	abstract class "Usuário" as Usuario
+	class "Usuário" as Usuario
 	class "Atleta" as Atleta
 	class "Responsável" as Responsavel
 	class "Funcionário" as Funcionario
@@ -36,6 +39,7 @@ package "Pessoas" {
 }
 
 package "Acesso" {
+	class "Grupo de permissões" as Grupo
 	class "Permissão" as Permissao
 	class "Consentimento LGPD" as Consentimento
 }
@@ -48,6 +52,7 @@ package "Agendamento e recursos" {
 	class "Serviço" as Servico
 	class "Especialidade" as Especialidade
 	class "Lista de espera" as ListaEspera
+	class "Inscrição" as Inscricao
 	class "Aviso" as Aviso
 	class "Aula (grade)" as Aula
 	class "Configuração" as Configuracao
@@ -59,37 +64,41 @@ package "Acompanhamento técnico" {
 	class "Avaliação física" as AvaliacaoFisica
 	class "Plano de treino" as PlanoTreino
 	class "Exercício" as Exercicio
+	class "Item do plano" as ItemDoPlano
 }
 
-Usuario <|-- Atleta
-Usuario <|-- Responsavel
-Usuario <|-- Funcionario
-Funcionario "1" -- "1..3" Papel : exerce
 Papel <|-- Profissional
 Papel <|-- Recepcao
 Papel <|-- Administrador
-Usuario "1" -- "0..*" Permissao : possui
+Usuario "1" -- "0..1" Atleta : perfil
+Usuario "1" -- "0..1" Responsavel : perfil
+Usuario "1" -- "0..1" Funcionario : perfil
+Funcionario "1" -- "0..3" Papel : exerce
+Usuario "0..*" -- "0..*" Grupo : participa
+Grupo "0..*" -- "0..*" Permissao : concede
 Usuario "1" -- "0..*" Consentimento : registra
-Responsavel "0..*" -- "0..1" Atleta : responsável legal
+Responsavel "0..1" -- "0..*" Atleta : responsável legal
 
-Atleta "1..*" -- "0..*" Agendamento : participa
+Atleta "1" -- "0..*" Agendamento : participa
 Profissional "1" -- "0..*" Agendamento : atende
 Espaco "1" -- "0..*" Agendamento : reservado em
 Servico "1" -- "0..*" Agendamento : define o tipo
-Profissional "0..*" -- "1..*" Especialidade : atende
+Profissional "0..*" -- "0..*" Especialidade : atende
 Servico "0..*" -- "1" Especialidade : pertence a
 Atleta "1" -- "0..*" ListaEspera : aguarda vaga
 ListaEspera "0..*" -- "1" Servico : para
 ListaEspera "0..*" -- "1" Profissional : com
 Usuario "1" -- "0..*" Aviso : recebe
-Espaco "0..*" -- "1..*" Especialidade : atende
+Espaco "0..*" -- "0..*" Especialidade : atende
 Aula "0..*" -- "1" Servico : de
 Aula "0..*" -- "1" Profissional : ministrada por
 Aula "0..*" -- "1" Espaco : reserva
 Agendamento "0..*" -- "0..1" Aula : inscrição em
+Atleta "1" -- "0..*" Inscricao : realiza
+Aula "1" -- "0..*" Inscricao : recebe
+Agendamento "0..1" -- "0..1" Inscricao : vincula
 ListaEspera "0..*" -- "0..1" Aula : espera vaga em
 Agendamento "0..*" -- "0..*" Equipamento : reserva
-Administrador "1" -- "0..*" Funcionario : cadastra
 Profissional "1" -- "0..*" Disponibilidade : define
 Profissional "0..1" -- "0..*" Bloqueio : bloqueia horário
 Espaco "0..1" -- "0..*" Bloqueio : pode sofrer
@@ -100,13 +109,12 @@ Atleta "1" -- "0..*" AvaliacaoFisica : possui histórico
 Profissional "1" -- "0..*" AvaliacaoFisica : realiza
 Atleta "1" -- "0..*" PlanoTreino : acompanha
 Profissional "1" -- "0..*" PlanoTreino : prescreve
-PlanoTreino "0..*" -- "1..*" Exercicio : contém
+PlanoTreino "1" *-- "1..*" ItemDoPlano : composição
+ItemDoPlano "0..*" -- "1" Exercicio : descreve
 Agendamento "0..1" --> "0..1" Agendamento : substitui
 @enduml
 ```
-(visão de domínio)
-
-2. **Evolução para o Diagrama de Classes de Especificação** (visão de projeto).  
+(visão de domínio; perfis são vinculados a Usuário, não subclasses de autenticação)
 
 Ambos devem ser derivados de:
 
@@ -115,14 +123,14 @@ Ambos devem ser derivados de:
 - Documento de levantamento de requisitos;
 - Protótipo de baixa fidelidade.
 
-### Fontes de entrada obrigatórias
+### Fontes de entrada e alinhamento
 
 - **Levantamento de requisitos**: requisitos funcionais e não funcionais.
 - **Casos de uso**: atores, fluxos principal e alternativos.
 - **Diagrama de casos de uso**: escopo e fronteiras do sistema.
-- **Protótipo de baixa fidelidade**: entidades percebidas na interface e regras de navegação.
+- **Protótipo de baixa fidelidade**: entidades percebidas na interface e regras de navegação, usado como evidência de interação; quando não detalha uma área, prevalecem os requisitos e casos de uso.
 
-### 1) Diagrama de Classes Conceitual
+O documento diferencia o modelo conceitual (sem detalhes de framework) do modelo de especificação (que registra as relações persistidas e responsabilidades existentes no código). O arquivo-fonte das entidades está nos apps Django listados ao final.
 
 #### 1.1 Finalidade
 
@@ -140,12 +148,12 @@ O escopo não inclui componentes técnicos da API, como telas, endpoints, contro
 
 #### 1.3 Notação mínima
 
-O diagrama utiliza notação UML e segue estas regras:
+O diagrama conceitual utiliza notação UML e segue estas regras:
 
 - Cada classe contém somente seu nome; não são incluídos atributos nem métodos;
 - Associações representam vínculos identificados nos casos de uso e no domínio do projeto;
 - Multiplicidades indicam quantas instâncias podem participar de cada associação;
-- Generalizações são usadas para representar especializações de perfis quando aplicável;
+- Generalizações são usadas somente para especializações reais do domínio, como os papéis do funcionário;
 - Não são incluídos detalhes de implementação nem classes técnicas.
 
 #### 1.4 Rastreabilidade
@@ -162,7 +170,7 @@ A tabela relaciona cada classe aos requisitos do Brainstorm (`BS`), aos casos de
 | Profissional | BS02, BS06, BS07, BS08, BS09, BS10, BS11, BS15 | UC04, UC05, UC06, UC07, UC08, UC09, UC10, UC11, UC12, UC13, UC14, UC15 | Tela 1 — Login; Tela 2 — Informações de agendamento; Tela 5 — Minha agenda; Tela 6 — Registro de status do atendimento |
 | Recepção | BS05, BS11, BS12 | UC01, UC03, UC04, UC06, UC08, UC09, UC10 | Tela 1 — Login; Tela 2 — Informações de agendamento; Tela 5 — Minha agenda |
 | Administrador | BS12, BS13, BS14 | UC01, UC03, UC04, UC06, UC08, UC09, UC10, UC11, UC15, UC16, UC17, UC18 | Tela 1 — Login; demais telas administrativas não detalhadas no protótipo |
-| Permissão | BS12, BS13 | UC01, UC04, UC16 | Tela 1 — Login; Tela 1b — Cadastro |
+| Grupo de permissões e Permissão | BS12, BS13 | UC01, UC04, UC16 | Tela 1 — Login; associação de papéis e acessos gerenciada pela equipe (não detalhada no protótipo) |
 | Consentimento LGPD | BS13 | UC02 | Tela 1b — Cadastro |
 | Agendamento | BS05, BS06, BS10, BS11, BS14 | UC06, UC07, UC08, UC09, UC10, UC11 | Tela 2 — Informações de agendamento; Tela 3 — Verificação de disponibilidade; Tela 4 — Confirmação do agendamento; Tela 5 — Minha agenda; Tela 6 — Registro de status do atendimento |
 | Disponibilidade | BS06 | UC05, UC07, UC17 | Tela 2 — Informações de agendamento; Tela 3 — Verificação de disponibilidade |
@@ -171,6 +179,7 @@ A tabela relaciona cada classe aos requisitos do Brainstorm (`BS`), aos casos de
 | Serviço | BS05, BS14 | UC06, UC18 | Tela 2 — Informações de agendamento |
 | Especialidade | BS02, BS05 | UC04, UC18 | Tela 2 — Informações de agendamento |
 | Lista de espera | BS05, BS06, BS14 | UC09, UC19 | Tela 2 — Informações de agendamento (horário em cinza) |
+| Inscrição | BS05, BS06 | UC06, UC21 | Tela 2 — Informações de agendamento (aulas do dia e vagas) |
 | Aviso | BS11, BS15 | UC19, UC20 | Agenda (quadro de avisos) e e-mail |
 | Aula (grade) | BS05, BS06, BS14 | UC06, UC19, UC21 | Tela 2 — Informações de agendamento (aulas do dia com vagas) |
 | Configuração | BS14 | UC19 | Painel do administrador (prazo para confirmar a vaga) |
@@ -179,6 +188,7 @@ A tabela relaciona cada classe aos requisitos do Brainstorm (`BS`), aos casos de
 | Avaliação física | BS03, BS07, BS09 | UC12, UC14, UC15 | Não detalhada no protótipo |
 | Plano de treino | BS04, BS07, BS09 | UC13, UC14, UC15 | Não detalhada no protótipo |
 | Exercício | BS04 | UC13 | Não detalhada no protótipo |
+| Item do plano | BS04 | UC13 | Não detalhada no protótipo |
 
 #### 1.5 Critérios de validação
 
@@ -189,27 +199,22 @@ A tabela relaciona cada classe aos requisitos do Brainstorm (`BS`), aos casos de
 - Não devem ser incluídas classes técnicas nem conceitos fora do escopo do PKZ LAB;
 - Cada linha de rastreabilidade deve apontar para referências existentes; a ausência de tela no protótipo deve ser identificada, não presumida.
 
-### 2) Transição para Diagrama de Classes de Especificação
+### 2) Critérios de transição entre as visões
 
 #### 2.1 Objetivo
-Refinar o modelo conceitual para uma estrutura orientada à implementação.
+Explicitar como os conceitos da seção 1 aparecem na especificação da seção 3, sem confundir entidades do domínio, recursos externos do Django e interfaces da API.
 
-#### 2.2 Regras de refinamento
+#### 2.2 Critérios aplicados
 
-- Converter conceitos em classes de software quando aplicável;
-- Definir tipos de atributos e visibilidade;
-- Incluir operações principais;
-- Aplicar estereótipos quando necessário (ex.: `<<entity>>`, `<<service>>`, `<<boundary>>`);
-- Preservar rastreabilidade com requisitos e casos de uso.
+- Os conceitos persistidos correspondem aos modelos Django; `Usuario`, `Grupo` e `Permissão` são recursos do Django Auth, não modelos próprios dos apps;
+- As interfaces REST aparecem como classes `<<boundary>>`, separadas das entidades e das regras de negócio;
+- Atributos, tipos, propriedades calculadas, operações e relações refletem os modelos e endpoints implementados; chaves primárias automáticas são omitidas;
+- As associações registram cardinalidades e opcionalidades persistidas, e as restrições relevantes são explicadas junto ao diagrama;
+- As tabelas de rastreabilidade ligam as classes conceituais e de especificação aos requisitos e casos de uso.
 
-#### 2.3 Itens esperados por classe
+#### 2.3 Leitura da especificação
 
-- **Nome da classe**;
-- **Atributos** (`nome: tipo [visibilidade]`);
-- **Métodos/operações** (`assinatura`);
-- **Responsabilidade**;
-- **Dependências e associações**;
-- **Restrições/invariantes** (quando houver).
+Os campos `FK`, `O2O` e `M2M` indicam relações persistidas; `?` indica valor ou vínculo opcional. Membros precedidos por `+` são públicos. Propriedades calculadas e métodos expõem comportamento relevante, enquanto escolhas de status são tipos do modelo, não classes de domínio.
 
 
 ### 3) Diagrama de Classes de Especificação
@@ -462,17 +467,56 @@ package "acompanhamento" {
 }
 
 package "Interfaces REST (Django REST Framework)" {
+  class AtletaViewSet <<boundary>>
+  class ResponsavelViewSet <<boundary>>
+  class ProfissionalViewSet <<boundary>>
   class AgendamentoViewSet <<boundary>> {
+    +list(request): Response
+    +retrieve(request, pk): Response
+    +create(request): Response
     +cancelar(request, pk): Response
     +reagendar(request, pk): Response
     +registrar_atendimento(request, pk): Response
   }
+  class AulaViewSet <<boundary>>
+  class InscricaoViewSet <<boundary>>
+  class ListaEsperaViewSet <<boundary>> {
+    +confirmar(request, pk): Response
+    +recusar(request, pk): Response
+    +sair(request, pk): Response
+  }
   class AvisoViewSet <<boundary>> {
     +lido(request, pk): Response
   }
-  class AvaliacaoFisicaViewSet <<boundary>>
-  class PlanoTreinoViewSet <<boundary>>
-  class ExercicioViewSet <<boundary>>
+  class DisponibilidadeViewSet <<boundary>>
+  class BloqueioViewSet <<boundary>>
+  class AtendimentoViewSet <<boundary>>
+  class HorariosLivresViewSet <<boundary>> {
+    +list(request): Response
+  }
+  class AvaliacaoFisicaViewSet <<boundary>> {
+    +list(request): Response
+    +retrieve(request, pk): Response
+    +create(request): Response
+  }
+  class PlanoTreinoViewSet <<boundary>> {
+    +list(request): Response
+    +retrieve(request, pk): Response
+    +create(request): Response
+  }
+  class ExercicioViewSet <<boundary>> {
+    +list(request): Response
+    +retrieve(request, pk): Response
+    +create(request): Response
+    +update(request, pk): Response
+    +destroy(request, pk): Response
+  }
+  class EvolucaoDoAtletaView <<boundary>> {
+    +get(request, pk): Response
+  }
+  class RelatorioDeDesempenhoView <<boundary>> {
+    +get(request): Response
+  }
 }
 
 Papel <|-- Profissional
@@ -530,12 +574,27 @@ AvisoViewSet ..> Aviso
 AvaliacaoFisicaViewSet ..> AvaliacaoFisica
 PlanoTreinoViewSet ..> PlanoTreino
 ExercicioViewSet ..> Exercicio
+AtletaViewSet ..> Atleta
+ResponsavelViewSet ..> Responsavel
+ProfissionalViewSet ..> Profissional
+ListaEsperaViewSet ..> ListaEspera
+AulaViewSet ..> Aula
+InscricaoViewSet ..> Inscricao
+DisponibilidadeViewSet ..> Disponibilidade
+BloqueioViewSet ..> Bloqueio
+AtendimentoViewSet ..> Atendimento
+HorariosLivresViewSet ..> Disponibilidade
+EvolucaoDoAtletaView ..> AvaliacaoFisica
+EvolucaoDoAtletaView ..> PlanoTreino
+EvolucaoDoAtletaView ..> Atendimento
+RelatorioDeDesempenhoView ..> AvaliacaoFisica
+RelatorioDeDesempenhoView ..> Atendimento
 @enduml
 ```
 
-**Tipos e regras de implementação:** `StatusAgendamento`, `StatusInscricao`, `StatusListaEspera` e `StatusAtendimento` são escolhas (`TextChoices`) definidas nos respectivos modelos; não são entidades. `fim` do agendamento é calculado a partir de `inicio` e da duração do serviço. `Aula.inicio` e `Aula.fim` também são propriedades calculadas. O fim nullable de um ciclo de treino, o responsável do atleta e os vínculos de aula/lista de espera são opcionais. `ItemDoPlano` é a entidade associativa do relacionamento N:N entre plano e exercício; cada plano guarda sua composição e versões anteriores não são apagadas.
+**Tipos e regras de implementação:** os campos `id` são chaves primárias automáticas do Django e foram omitidos para reduzir repetição. `StatusAgendamento`, `StatusInscricao`, `StatusListaEspera` e `StatusAtendimento` são escolhas (`TextChoices`) definidas nos respectivos modelos; não são entidades. `fim` do agendamento é calculado a partir de `inicio` e da duração do serviço. `Aula.inicio` e `Aula.fim` também são propriedades calculadas. O fim nullable de um ciclo de treino, o responsável do atleta e os vínculos de aula/lista de espera são opcionais. `ItemDoPlano` é a entidade associativa do relacionamento N:N entre plano e exercício; cada plano guarda sua composição e versões anteriores não são apagadas.
 
-**Associações e invariantes relevantes:** o funcionário pode exercer zero ou mais papéis, no máximo um de cada tipo, e papéis ativos sincronizam os grupos e permissões Django. Um serviço pertence a uma especialidade e pode restringir opcionalmente os espaços disponíveis. A lista de espera é para um serviço/profissional/horário ou para uma aula; uma oferta referencia a vaga que a originou e pode criar um agendamento confirmado. Cada atendimento pertence a um único agendamento e é registrado por um usuário. Bloqueio tem exatamente um alvo entre profissional, espaço e equipamento. Um plano contém ao menos um `ItemDoPlano`; uma nova prescrição pode substituir a versão ativa. As interfaces REST são camadas de entrada e delegam regras e persistência às entidades/serviços dos modelos.
+**Associações e invariantes relevantes:** `Usuario` é uma entidade externa do Django Auth; atleta, responsável e funcionário são perfis opcionais 1:1, não subclasses de usuário. Um funcionário pode exercer zero a três papéis, no máximo um de cada tipo; papéis ativos sincronizam os grupos e permissões Django. `is_staff` habilita acesso ao painel administrativo do Django, mas não é usado para autorizar operações da API. Um serviço pertence a uma especialidade e pode restringir opcionalmente os espaços disponíveis. A lista de espera é para um serviço/profissional/horário ou para uma aula; uma oferta referencia a vaga que a originou e pode criar um agendamento confirmado. Cada atendimento pertence a um único agendamento e é registrado por um usuário. Bloqueio tem exatamente um alvo entre profissional, espaço e equipamento. Um plano contém ao menos um `ItemDoPlano`; uma nova prescrição pode substituir a versão ativa. As interfaces REST são camadas de entrada e delegam regras e persistência às entidades/serviços dos modelos.
 
 #### 3.2 Rastreabilidade
 
@@ -575,30 +634,46 @@ Os requisitos abaixo usam os identificadores RF01–RF22 do Levantamento de Requ
 | AvaliacaoFisicaViewSet | Avaliação física | RF12, RF15 | UC12, UC15 |
 | PlanoTreinoViewSet | Plano de treino | RF13 | UC13 |
 | ExercicioViewSet | Exercício | RF13 | UC13 |
+| AtletaViewSet | Atleta | RF02, RF10, RF16 | UC02, UC10, UC16 |
+| ResponsavelViewSet | Responsável | RF02, RF10 | UC02, UC10 |
+| ProfissionalViewSet | Profissional | RF04, RF06 | UC04, UC06 |
+| AulaViewSet | Aula (grade) | RF22 | UC21 |
+| InscricaoViewSet | Inscrição | RF06, RF22 | UC06, UC21 |
+| ListaEsperaViewSet | Lista de espera | RF20 | UC19 |
+| DisponibilidadeViewSet | Disponibilidade | RF05 | UC05 |
+| BloqueioViewSet | Bloqueio de disponibilidade | RF05, RF17 | UC05, UC17 |
+| AtendimentoViewSet | Atendimento | RF11 | UC11 |
+| HorariosLivresViewSet | Disponibilidade / Agendamento | RF07 | UC07 |
+| EvolucaoDoAtletaView | Avaliação física / Plano de treino / Atendimento | RF14 | UC14 |
+| RelatorioDeDesempenhoView | Avaliação física / Atendimento | RF15 | UC15 |
 
 #### 3.3 Critérios de qualidade
 
 - Os nomes, atributos, tipos e operações do diagrama correspondem aos modelos e interfaces REST implementados; propriedades e valores derivados estão identificados como tais.
 - As associações registram os vínculos reais, inclusive o modelo associativo `ItemDoPlano`, a referência de uma oferta à vaga original e o autor usuário do atendimento.
 - As multiplicidades distinguem vínculos obrigatórios, opcionais, um-para-um e muitos-para-muitos; campos nullable estão marcados com `?`.
-- Os requisitos RF18 (integração financeira futura) e RF não relacionado a uma classe persistida não geram entidades fictícias no modelo.
+- RF18 (integração financeira futura) não possui UC definido nem implementação no escopo atual e, por isso, não gera classe fictícia no diagrama.
+- Requisitos não funcionais são transversais: RNF03/RNF10 são aplicados por permissões e filtros das interfaces; RNF04 pelas validações de atleta e consentimento; RNF06 pela preservação de cancelamentos, substituições e versões do plano. Eles não representam entidades adicionais.
 - A tabela liga cada classe de especificação a uma classe conceitual e aos RF/UC existentes, permitindo rastrear as responsabilidades até o requisito.
 
 
 ### 4) Estrutura de versionamento e revisão
 
-- **Versão**: `v0.1`
-- **Data**: `25/09/2026`
-- **Autor(es)**: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
-- **Revisor(es)**: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
-- **Resumo da alteração**: Inclusão do Diagrama de Classes Conceitual, com classes vazias e relacionamentos derivados dos Casos de uso, Documento de Levantamento de Requisitos e Protótipo de Baixa fidelidade do PKZ LAB.
+- **Versão atual**: `v0.2`
+- **Data da revisão**: `07/11/2026`
+- **Autores do documento**: Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade
+- **Revisão**: atualização de documentação baseada na implementação atual; validação automática por compilação MkDocs/PlantUML.
+
+| Versão | Data | Resumo |
+|---|---|---|
+| v0.1 | 25/09/2026 | Modelo conceitual inicial derivado dos casos de uso, requisitos e protótipo. |
+| v0.2 | 07/11/2026 | Refatoração do modelo conceitual e de especificação para refletir os quatro apps, perfis, permissões, relações persistidas, interfaces REST e rastreabilidade RF/UC do projeto. |
 
 ### 5) Entregáveis
 
-- Diagrama de Classes Conceitual (imagem + fonte);
-- Diagrama de Classes de Especificação (imagem + fonte);
-- Tabelas de rastreabilidade preenchidas;
-- Registro de validação com equipe e stakeholders.
+- Diagramas conceitual e de especificação em PlantUML, incluídos como fonte neste documento e renderizados pelo MkDocs;
+- Tabelas de rastreabilidade conceitual (BS/UC/protótipo) e de especificação (RF/UC);
+- Validação técnica da documentação por build MkDocs e renderização PlantUML. A validação com stakeholders é uma atividade de revisão da equipe, não inferida por este documento.
 
 ## Organização do código em apps (Django)
 
