@@ -41,11 +41,6 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Elaboracao/Exemplo%20Biblioteca%20Digital/</loc>
-         <lastmod>2026-11-11</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Elaboracao/casos_de_uso/</loc>
          <lastmod>2026-11-11</lastmod>
          <changefreq>daily</changefreq>
@@ -62,11 +57,6 @@
     </url>
     <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Elaboracao/levreq/</loc>
-         <lastmod>2026-11-11</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Elaboracao/prototipo_alta_fidelidade/</loc>
          <lastmod>2026-11-11</lastmod>
          <changefreq>daily</changefreq>
     </url>
@@ -91,22 +81,7 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Iniciacao/doc_template/</loc>
-         <lastmod>2026-11-11</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Iniciacao/documento_de_visao/</loc>
-         <lastmod>2026-11-11</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Iniciacao/mapa_mental/</loc>
-         <lastmod>2026-11-11</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/Iniciacao/metodologia/</loc>
          <lastmod>2026-11-11</lastmod>
          <changefreq>daily</changefreq>
     </url>
