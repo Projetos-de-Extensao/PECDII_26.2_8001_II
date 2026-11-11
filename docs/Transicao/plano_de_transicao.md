@@ -14,25 +14,33 @@ A fase de Transição entrega o sistema ao ambiente de produção e aos usuário
 | Item | Hoje (desenvolvimento/demonstração) | Para produção |
 | -- | -- | -- |
 | Banco de dados | SQLite (`backend/db.sqlite3`) | PostgreSQL, com backup periódico |
-| `DEBUG` | `True` | `False` |
-| `SECRET_KEY` | Escrita no `settings.py` | Variável de ambiente, fora do repositório |
-| `ALLOWED_HOSTS` | IP do servidor, `localhost` e `127.0.0.1` | Domínio do CT |
+| `DEBUG` | `True` (padrão sem `DJANGO_DEBUG`) | `DJANGO_DEBUG=0` |
+| `SECRET_KEY` | Chave de desenvolvimento quando falta `DJANGO_SECRET_KEY` | `DJANGO_SECRET_KEY` longa e aleatória (com `DJANGO_DEBUG=0` o sistema não sobe sem ela) |
+| `ALLOWED_HOSTS` | IP do servidor, `localhost` e `127.0.0.1` | `DJANGO_ALLOWED_HOSTS` com o domínio do CT |
 | HTTPS | Não | Sim (RNF02), por proxy reverso |
 | Arquivos estáticos | Sem `STATIC_ROOT` | Definir `STATIC_ROOT` e rodar `collectstatic` (o painel do admin precisa deles com `DEBUG=False`) |
 | Servidor de aplicação | `runserver` | Servidor WSGI (ex.: gunicorn) |
 | Senhas | Hash padrão do Django | Mantido (o hash rápido vale só nos testes) |
+| Rotinas automáticas (UC19 e UC20) | Rodadas à mão (`python manage.py rotinas_da_agenda`) | Cron a cada 5 minutos (passo 6 do plano) |
 
 ## 2. Plano de implantação
 
 1. **Congelar a versão:** rodar `python manage.py test estrutura pessoas agenda` e criar uma tag no Git.
 2. **Preparar o servidor:** Python 3.12, ambiente virtual e `pip install -r backend/requirements.txt`.
-3. **Configurar o ambiente:** variáveis de `SECRET_KEY` e banco, `DEBUG=False`, `ALLOWED_HOSTS` e `STATIC_ROOT`.
-4. **Aplicar as migrações:** `python manage.py migrate`. A migração `estrutura/0002` já cria as quatro especialidades iniciais. A migração `agenda/0004` para e avisa se houver agendamentos antigos sem atleta; nesse caso, preencher o atleta de cada um antes de repetir.
+3. **Configurar o ambiente:** `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, banco e `STATIC_ROOT`.
+4. **Aplicar as migrações:** `python manage.py migrate`. A migração `estrutura/0002` já cria as quatro especialidades iniciais. A migração `agenda/0004` para e avisa se houver agendamentos antigos sem atleta; nesse caso, preencher o atleta de cada um antes de repetir. A migração `agenda/0010` transforma cada inscrição confirmada num agendamento da aula e depois apaga a tabela de inscrições (entrar numa aula passou a ser um agendamento da aula, UC06 A2); ninguém sai da turma.
 5. **Criar o primeiro administrador:** `python manage.py createsuperuser`.
-6. **Cadastrar a estrutura do CT pelo painel (UC17 e UC18):** espaços (ligados às especialidades), serviços e equipamentos.
-7. **Cadastrar a equipe (UC04):** funcionários com matrícula e papéis (Profissional, Recepção, Administrador).
-8. **Publicar:** servidor WSGI atrás do proxy HTTPS e conferir `/api/docs/`.
-9. **Rollback:** restaurar o backup do banco e voltar para a tag anterior.
+6. **Ligar as rotinas automáticas:** vencer as vagas da lista de espera não confirmadas no prazo (UC19) e mandar o lembrete de 24 horas (UC20) são feitos pelo comando `rotinas_da_agenda`, que precisa rodar sozinho a cada 5 minutos. No Linux (`crontab -e`, com o usuário que roda o sistema):
+
+    ```
+    */5 * * * * cd /caminho/do/projeto/backend && /caminho/do/venv/bin/python manage.py rotinas_da_agenda >> $HOME/pkzlab-rotinas.log 2>&1
+    ```
+
+    As variáveis de ambiente do passo 3 também precisam valer para o cron (ex.: um arquivo `.env` carregado antes do comando). Para conferir: `crontab -l` e o arquivo de log, que mostra "Lembretes enviados: N" a cada execução.
+7. **Cadastrar a estrutura do CT pelo painel (UC17 e UC18):** espaços (ligados às especialidades), serviços e equipamentos.
+8. **Cadastrar a equipe (UC04):** funcionários com matrícula e papéis (Profissional, Recepção, Administrador).
+9. **Publicar:** servidor WSGI atrás do proxy HTTPS e conferir `/api/docs/`.
+10. **Rollback:** restaurar o backup do banco e voltar para a tag anterior.
 
 ## 3. Treinamento dos usuários
 

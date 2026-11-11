@@ -13,11 +13,11 @@ from django.db.models import Q
 from pkzlab.permissoes import SoAdminAltera
 from pessoas.permissoes import tem_permissao
 
-from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, ListaEspera
 from .permissoes import ProfissionalMantemAPropria
 from .serializers import (AgendamentoSerializer, AtendimentoSerializer, AulaSerializer, AvisoSerializer,
                           BloqueioSerializer, CancelarSerializer, DisponibilidadeSerializer,
-                          HorariosLivresQuerySerializer, InscricaoSerializer, ListaEsperaSerializer,
+                          HorariosLivresQuerySerializer, HorariosLivresSerializer, ListaEsperaSerializer,
                           ReagendarSerializer, RegistrarAtendimentoSerializer, erro_da_api)
 from .perfis import pode_agendar_para, pode_registrar_atendimento, profissional_de, ve_a_agenda_toda
 
@@ -129,24 +129,6 @@ class AulaViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class InscricaoViewSet(viewsets.ModelViewSet):
-    queryset = Inscricao.objects.select_related("aula__servico", "aula__profissional__funcionario__usuario",
-                                              "aula__espaco", "atleta__usuario")
-    serializer_class = InscricaoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        usuario = self.request.user
-        if not tem_permissao(usuario, "ver_todas_as_pessoas"):
-            # o atleta vê as dele; o responsável, as dos dependentes (as mesmas que ele pode criar)
-            qs = qs.filter(Q(atleta__usuario_id=usuario.pk) | Q(atleta__responsavel__usuario_id=usuario.pk))
-        profissional = self.request.query_params.get("profissional")
-        if profissional and profissional.isdigit():
-            qs = qs.filter(aula__profissional=profissional)
-        return qs
-
-
 @extend_schema(parameters=[OpenApiParameter("status", str, enum=ListaEspera.Status.values)])
 class ListaEsperaViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                          viewsets.GenericViewSet):
@@ -249,11 +231,12 @@ class BloqueioViewSet(viewsets.ModelViewSet):
 
 class HorariosLivresViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = HorariosLivresSerializer
 
     @extend_schema(parameters=[
         OpenApiParameter("servico", int, required=True, description="ID do serviço."),
         OpenApiParameter("dia", str, required=True, description="Data no formato AAAA-MM-DD."),
-    ])
+    ], responses=HorariosLivresSerializer)
     def list(self, request):
         consulta = HorariosLivresQuerySerializer(data=request.query_params)
         consulta.is_valid(raise_exception=True)

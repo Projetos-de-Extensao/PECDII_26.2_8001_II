@@ -143,6 +143,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_RATES": {"recuperar_senha": "5/hour"},
+    "EXCEPTION_HANDLER": "pkzlab.erros.tratar_erros",  # apagar algo em uso: 400 em vez de 500
 }
 
 SIMPLE_JWT = {

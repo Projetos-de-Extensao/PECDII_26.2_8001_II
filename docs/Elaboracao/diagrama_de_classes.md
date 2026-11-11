@@ -52,7 +52,6 @@ package "Agendamento e recursos" {
 	class "Serviço" as Servico
 	class "Especialidade" as Especialidade
 	class "Lista de espera" as ListaEspera
-	class "Inscrição" as Inscricao
 	class "Aviso" as Aviso
 	class "Aula (grade)" as Aula
 	class "Configuração" as Configuracao
@@ -94,9 +93,6 @@ Aula "0..*" -- "1" Servico : de
 Aula "0..*" -- "1" Profissional : ministrada por
 Aula "0..*" -- "1" Espaco : reserva
 Agendamento "0..*" -- "0..1" Aula : inscrição em
-Atleta "1" -- "0..*" Inscricao : realiza
-Aula "1" -- "0..*" Inscricao : recebe
-Agendamento "0..1" -- "0..1" Inscricao : vincula
 ListaEspera "0..*" -- "0..1" Aula : espera vaga em
 Agendamento "0..*" -- "0..*" Equipamento : reserva
 Profissional "1" -- "0..*" Disponibilidade : define
@@ -179,7 +175,6 @@ A tabela relaciona cada classe aos requisitos do Brainstorm (`BS`), aos casos de
 | Serviço | BS05, BS14 | UC06, UC18 | Tela 2 — Informações de agendamento |
 | Especialidade | BS02, BS05 | UC04, UC18 | Tela 2 — Informações de agendamento |
 | Lista de espera | BS05, BS06, BS14 | UC09, UC19 | Tela 2 — Informações de agendamento (horário em cinza) |
-| Inscrição | BS05, BS06 | UC06, UC21 | Tela 2 — Informações de agendamento (aulas do dia e vagas) |
 | Aviso | BS11, BS15 | UC19, UC20 | Agenda (quadro de avisos) e e-mail |
 | Aula (grade) | BS05, BS06, BS14 | UC06, UC19, UC21 | Tela 2 — Informações de agendamento (aulas do dia com vagas) |
 | Configuração | BS14 | UC19 | Painel do administrador (prazo para confirmar a vaga) |
@@ -364,12 +359,6 @@ package "agenda" {
     +save(*args, **kwargs): None
     +__str__(): str
   }
-  class Inscricao {
-    +status: StatusInscricao
-    +criado_em: datetime
-    +clean(): None
-    +__str__(): str
-  }
   class ListaEspera {
     +inicio: datetime
     +status: StatusListaEspera
@@ -479,7 +468,6 @@ package "Interfaces REST (Django REST Framework)" {
     +registrar_atendimento(request, pk): Response
   }
   class AulaViewSet <<boundary>>
-  class InscricaoViewSet <<boundary>>
   class ListaEsperaViewSet <<boundary>> {
     +confirmar(request, pk): Response
     +recusar(request, pk): Response
@@ -542,9 +530,6 @@ Aula "0..1" -- "0..*" Agendamento : agrupa
 Aula "0..*" --> "1" Servico : oferece
 Aula "0..*" --> "1" Profissional : ministrada por
 Aula "0..*" --> "1" Espaco : ocorre em
-Atleta "1" -- "0..*" Inscricao : participa
-Aula "1" -- "0..*" Inscricao : recebe
-Agendamento "0..1" -- "0..1" Inscricao : vincula
 Atleta "1" -- "0..*" ListaEspera : aguarda
 Servico "1" -- "0..*" ListaEspera : solicitado
 Profissional "1" -- "0..*" ListaEspera : solicitado
@@ -579,7 +564,6 @@ ResponsavelViewSet ..> Responsavel
 ProfissionalViewSet ..> Profissional
 ListaEsperaViewSet ..> ListaEspera
 AulaViewSet ..> Aula
-InscricaoViewSet ..> Inscricao
 DisponibilidadeViewSet ..> Disponibilidade
 BloqueioViewSet ..> Bloqueio
 AtendimentoViewSet ..> Atendimento
@@ -592,9 +576,9 @@ RelatorioDeDesempenhoView ..> Atendimento
 @enduml
 ```
 
-**Tipos e regras de implementação:** os campos `id` são chaves primárias automáticas do Django e foram omitidos para reduzir repetição. `StatusAgendamento`, `StatusInscricao`, `StatusListaEspera` e `StatusAtendimento` são escolhas (`TextChoices`) definidas nos respectivos modelos; não são entidades. `fim` do agendamento é calculado a partir de `inicio` e da duração do serviço. `Aula.inicio` e `Aula.fim` também são propriedades calculadas. O fim nullable de um ciclo de treino, o responsável do atleta e os vínculos de aula/lista de espera são opcionais. `ItemDoPlano` é a entidade associativa do relacionamento N:N entre plano e exercício; cada plano guarda sua composição e versões anteriores não são apagadas.
+**Tipos e regras de implementação:** os campos `id` são chaves primárias automáticas do Django e foram omitidos para reduzir repetição. `StatusAgendamento`, `StatusListaEspera` e `StatusAtendimento` são escolhas (`TextChoices`) definidas nos respectivos modelos; não são entidades. `fim` do agendamento é calculado a partir de `inicio` e da duração do serviço. `Aula.inicio` e `Aula.fim` também são propriedades calculadas. O fim nullable de um ciclo de treino, o responsável do atleta e os vínculos de aula/lista de espera são opcionais. `ItemDoPlano` é a entidade associativa do relacionamento N:N entre plano e exercício; cada plano guarda sua composição e versões anteriores não são apagadas.
 
-**Associações e invariantes relevantes:** `Usuario` é uma entidade externa do Django Auth; atleta, responsável e funcionário são perfis opcionais 1:1, não subclasses de usuário. Um funcionário pode exercer zero a três papéis, no máximo um de cada tipo; papéis ativos sincronizam os grupos e permissões Django. `is_staff` habilita acesso ao painel administrativo do Django, mas não é usado para autorizar operações da API. Um serviço pertence a uma especialidade e pode restringir opcionalmente os espaços disponíveis. A lista de espera é para um serviço/profissional/horário ou para uma aula; uma oferta referencia a vaga que a originou e pode criar um agendamento confirmado. Cada atendimento pertence a um único agendamento e é registrado por um usuário. Bloqueio tem exatamente um alvo entre profissional, espaço e equipamento. Um plano contém ao menos um `ItemDoPlano`; uma nova prescrição pode substituir a versão ativa. As interfaces REST são camadas de entrada e delegam regras e persistência às entidades/serviços dos modelos.
+**Associações e invariantes relevantes:** `Usuario` é uma entidade externa do Django Auth; atleta, responsável e funcionário são perfis opcionais 1:1, não subclasses de usuário. Um funcionário pode exercer zero a três papéis, no máximo um de cada tipo; papéis ativos sincronizam os grupos e permissões Django. `is_staff` habilita acesso ao painel administrativo do Django, mas não é usado para autorizar operações da API. Um serviço pertence a uma especialidade e pode restringir opcionalmente os espaços disponíveis. A lista de espera é para um serviço/profissional/horário ou para uma aula; uma oferta referencia a vaga que a originou e pode criar um agendamento confirmado. Entrar numa aula em grupo é criar um agendamento ligado à aula (UC06 A2); as vagas da aula são contadas pelos agendamentos ativos dela. Cada atendimento pertence a um único agendamento e é registrado por um usuário. Bloqueio tem exatamente um alvo entre profissional, espaço e equipamento. Um plano contém ao menos um `ItemDoPlano`; uma nova prescrição pode substituir a versão ativa. As interfaces REST são camadas de entrada e delegam regras e persistência às entidades/serviços dos modelos.
 
 #### 3.2 Rastreabilidade
 
@@ -619,7 +603,6 @@ Os requisitos abaixo usam os identificadores RF01–RF22 do Levantamento de Requ
 | Configuracao | Configuração | RF20 | UC19 |
 | Agendamento | Agendamento | RF06, RF07, RF08, RF09, RF10, RF11, RF20, RF21, RF22 | UC06, UC07, UC08, UC09, UC10, UC11, UC19, UC20, UC21 |
 | Aula | Aula (grade) | RF06, RF07, RF20, RF22 | UC06, UC07, UC19, UC21 |
-| Inscricao | Agendamento / Aula | RF06, RF10, RF22 | UC06, UC10, UC21 |
 | ListaEspera | Lista de espera | RF20, RF21 | UC19, UC20 |
 | Aviso | Aviso | RF21 | UC20 |
 | Disponibilidade | Disponibilidade | RF05, RF06, RF07 | UC05, UC06, UC07 |
@@ -638,7 +621,6 @@ Os requisitos abaixo usam os identificadores RF01–RF22 do Levantamento de Requ
 | ResponsavelViewSet | Responsável | RF02, RF10 | UC02, UC10 |
 | ProfissionalViewSet | Profissional | RF04, RF06 | UC04, UC06 |
 | AulaViewSet | Aula (grade) | RF22 | UC21 |
-| InscricaoViewSet | Inscrição | RF06, RF22 | UC06, UC21 |
 | ListaEsperaViewSet | Lista de espera | RF20 | UC19 |
 | DisponibilidadeViewSet | Disponibilidade | RF05 | UC05 |
 | BloqueioViewSet | Bloqueio de disponibilidade | RF05, RF17 | UC05, UC17 |
