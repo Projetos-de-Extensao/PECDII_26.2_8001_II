@@ -83,11 +83,18 @@ WSGI_APPLICATION = 'pkzlab.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# PostgreSQL em todo lugar. Os padrões abaixo servem para a máquina de quem desenvolve (veja o README);
+# no servidor, as variáveis POSTGRES_* vêm do arquivo de ambiente, com a senha de verdade.
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get("POSTGRES_DB", "pkzlab"),
+        'USER': os.environ.get("POSTGRES_USER", "pkzlab"),
+        'PASSWORD': os.environ.get("POSTGRES_PASSWORD", "pkzlab"),
+        'HOST': os.environ.get("POSTGRES_HOST", "localhost"),
+        'PORT': os.environ.get("POSTGRES_PORT", "5432"),
+        'CONN_MAX_AGE': 60,  # reaproveita a conexão entre requisições
     }
 }
 

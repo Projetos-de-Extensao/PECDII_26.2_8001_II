@@ -13,7 +13,7 @@ A fase de Transição entrega o sistema ao ambiente de produção e aos usuário
 
 | Item | Hoje (desenvolvimento/demonstração) | Para produção |
 | -- | -- | -- |
-| Banco de dados | SQLite (`backend/db.sqlite3`) | PostgreSQL, com backup periódico |
+| Banco de dados | PostgreSQL 16 no servidor de demonstração e no GitHub Actions (variáveis `POSTGRES_*`) | PostgreSQL, com backup periódico (`pg_dump`) |
 | `DEBUG` | `True` (padrão sem `DJANGO_DEBUG`) | `DJANGO_DEBUG=0` |
 | `SECRET_KEY` | Chave de desenvolvimento quando falta `DJANGO_SECRET_KEY` | `DJANGO_SECRET_KEY` longa e aleatória (com `DJANGO_DEBUG=0` o sistema não sobe sem ela) |
 | `ALLOWED_HOSTS` | IP do servidor, `localhost` e `127.0.0.1` | `DJANGO_ALLOWED_HOSTS` com o domínio do CT |

@@ -11,14 +11,14 @@ Esta página mostra como o grupo roda o projeto na própria máquina e como func
 
 ## Ambiente de desenvolvimento
 
-Cada integrante roda o projeto na própria máquina, com Python 3.12 e um ambiente virtual:
+Cada integrante roda o projeto na própria máquina, com Python 3.12, um ambiente virtual e um PostgreSQL local. O banco e o usuário `pkzlab` são criados uma vez, como explica o README (seção "Preparar o PostgreSQL"):
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate              # no Windows: venv\Scripts\activate
 pip install -r backend/requirements.txt
 cd backend
-python manage.py migrate              # cria o banco SQLite
+python manage.py migrate              # cria as tabelas no PostgreSQL
 python manage.py popular_demo         # dados de exemplo (senha senha12345)
 python manage.py runserver            # http://127.0.0.1:8000/api/docs/
 ```
@@ -39,17 +39,17 @@ Sem servidor de e-mail configurado, os e-mails do sistema (avisos e recuperaçã
 | Máquina | Instância EC2 da AWS chamada "Os fofos", na região de Ohio (`us-east-2`) |
 | Endereço | http://3.148.241.152:8000/api/docs/ (Swagger) e http://3.148.241.152:8000/admin/ |
 | Aplicação | Django rodando como serviço do sistema (`pkzlab`), na porta 8000 |
-| Banco | SQLite, carregado com o `popular_demo` |
+| Banco | PostgreSQL 16 na própria instância, com os dados do `popular_demo`. A senha fica num arquivo de ambiente que só o usuário do sistema lê |
 | Logins de exemplo | Os do README (ex.: `carla@pkzlab.demo`, senha `senha12345`) |
 
 O servidor é atualizado pelo AWS Systems Manager, que roda os comandos na máquina sem precisar de SSH:
 
-1. Copia o banco (`db.sqlite3.antes-deploy-<data>`), para poder voltar atrás.
+1. Faz o backup do banco com `pg_dump`, para poder voltar atrás.
 2. `git pull` da `main`.
 3. `pip install -r requirements.txt`, `manage.py check` e `manage.py migrate`.
 4. Reinicia o serviço `pkzlab` e confere se ele voltou.
 
-É um servidor de demonstração, sem dados reais: roda com `DEBUG` ligado e o `runserver` do Django. O que muda para produção (PostgreSQL, HTTPS, gunicorn, chave secreta e rotinas no cron) está no [Plano de Transição](../Transicao/plano_de_transicao.md).
+É um servidor de demonstração, sem dados reais: roda com `DEBUG` ligado e o `runserver` do Django. O que muda para produção (HTTPS, gunicorn, chave secreta, backup periódico e rotinas no cron) está no [Plano de Transição](../Transicao/plano_de_transicao.md).
 
 ## Autor(es)
 

@@ -12,7 +12,7 @@ def conferir_agendamentos_sem_atleta(apps, schema_editor):
         protocolos = ", ".join(sem_atleta.values_list("protocolo", flat=True)[:10])
         raise RuntimeError(
             f"Existem {sem_atleta.count()} agendamento(s) sem atleta ({protocolos}), criados antes do atleta "
-            "existir no sistema. Se forem só testes, apague o db.sqlite3 e rode o migrate de novo. "
+            "existir no sistema. Se forem só testes, apague e recrie o banco e rode o migrate de novo. "
             "Se forem reais, preencha o atleta de cada um pelo python manage.py shell e rode o migrate de novo.")
 
 
