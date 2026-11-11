@@ -23,9 +23,9 @@ nav:
       - Diagrama de Sequência: Elaboracao/diagrama_de_sequencia.md
   - Construção:
       - Index: Construcao/index.md
-      - Github Workflows: Construcao/github_workflows.md
-      - GitHub Projects: Construcao/github_projects.md
-      - CodeSpace: Construcao/codespace.md
+      - Fluxo no GitHub: Construcao/github_workflows.md
+      - Gestão de tarefas: Construcao/github_projects.md
+      - Ambiente e servidor: Construcao/codespace.md
   - API:
       - Visão geral: API/index.md
   - Iterações:
@@ -39,8 +39,6 @@ nav:
   - Transição:
       - Index: Transicao/index.md
       - Plano de Transição: Transicao/plano_de_transicao.md
-
-  - Bibliografia: Disciplina/Bibliografia.md
 
   - Bibliografia: Disciplina/Bibliografia.md
 

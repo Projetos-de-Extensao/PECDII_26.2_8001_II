@@ -108,6 +108,17 @@ class ApiDeAcompanhamento(Base):
         self.assertEqual(self.como(maria.usuario).get("/api/avaliacoes/").data["count"], 0)
         self.assertEqual(self.como(self.prof.funcionario.usuario).get("/api/avaliacoes/").data["count"], 1)
 
+    def test_recepcao_nao_ve_dados_tecnicos(self):
+        # RNF03: avaliação e plano são dados sensíveis, só para a equipe técnica, o atleta e o responsável
+        self.avaliar(date(2026, 3, 1), velocidade=Decimal("5"))
+        self.prescrever()
+        rita = Recepcao.objects.create(funcionario=funcionario("rita", "Rita", "M050")).funcionario.usuario
+        self.assertEqual(self.como(rita).get("/api/avaliacoes/").data["count"], 0)
+        self.assertEqual(self.como(rita).get("/api/planos/").data["count"], 0)
+        chefe = usuario_com_papel("chefe", "administrador")
+        self.assertEqual(self.como(chefe).get("/api/avaliacoes/").data["count"], 1)
+        self.assertEqual(self.como(chefe).get("/api/planos/").data["count"], 1)
+
     def test_responsavel_ve_o_do_dependente(self):
         mae = cadastrar_responsavel(email="mae@x.com", nome="Ana", senha="senha12345", aceitou_termos=True)
         filho = atleta("lucas", "Lucas", nascimento=date(2015, 1, 1), responsavel=mae)

@@ -22,10 +22,11 @@ A fase de Transição entrega o sistema ao ambiente de produção e aos usuário
 | Servidor de aplicação | `runserver` | Servidor WSGI (ex.: gunicorn) |
 | Senhas | Hash padrão do Django | Mantido (o hash rápido vale só nos testes) |
 | Rotinas automáticas (UC19 e UC20) | Rodadas à mão (`python manage.py rotinas_da_agenda`) | Cron a cada 5 minutos (passo 6 do plano) |
+| E-mail (avisos e recuperação de senha) | Mostrado no log do servidor (backend `console`) | Servidor SMTP nas variáveis `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER` e `EMAIL_HOST_PASSWORD` |
 
 ## 2. Plano de implantação
 
-1. **Congelar a versão:** rodar `python manage.py test estrutura pessoas agenda` e criar uma tag no Git.
+1. **Congelar a versão:** rodar `python manage.py test` (todos os apps; o GitHub Actions roda o mesmo a cada push) e criar uma tag no Git.
 2. **Preparar o servidor:** Python 3.12, ambiente virtual e `pip install -r backend/requirements.txt`.
 3. **Configurar o ambiente:** `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, banco e `STATIC_ROOT`.
 4. **Aplicar as migrações:** `python manage.py migrate`. A migração `estrutura/0002` já cria as quatro especialidades iniciais. A migração `agenda/0004` para e avisa se houver agendamentos antigos sem atleta; nesse caso, preencher o atleta de cada um antes de repetir. A migração `agenda/0010` transforma cada inscrição confirmada num agendamento da aula e depois apaga a tabela de inscrições (entrar numa aula passou a ser um agendamento da aula, UC06 A2); ninguém sai da turma.
@@ -46,15 +47,15 @@ A fase de Transição entrega o sistema ao ambiente de produção e aos usuário
 
 | Perfil | O que aprende | Como |
 | -- | -- | -- |
-| Administrador | Cadastrar espaços, serviços, equipamentos e equipe; inativar contas | Painel `/admin/` |
-| Recepção | Cadastrar atletas e responsáveis; agendar, reagendar e cancelar | API (Swagger) e painel |
-| Profissional | Consultar a própria agenda e os avisos | API (Swagger) |
-| Atleta e responsável | Cadastrar-se, agendar, cancelar e consultar a agenda | API (Swagger) |
+| Administrador | Cadastrar espaços, serviços, equipamentos e equipe; montar a grade de aulas; bloquear profissional, sala ou equipamento; inativar contas; gerar relatórios | Painel `/admin/` e API (Swagger) |
+| Recepção | Cadastrar atletas e responsáveis; agendar, reagendar e cancelar; colocar atletas na lista de espera | API (Swagger) e painel |
+| Profissional | Informar os turnos de atendimento; consultar a própria agenda e os avisos; registrar presença ou falta, avaliações físicas e planos de treino; acompanhar a evolução e o relatório de desempenho | API (Swagger) |
+| Atleta e responsável | Cadastrar-se e recuperar a senha; agendar, entrar em aulas e na lista de espera, cancelar e consultar a agenda; acompanhar avaliações, plano de treino e evolução | API (Swagger) |
 
 ## 4. Testes de aceitação
 
 <p align="justify">
-Os testes automáticos já cobrem estas regras (<code>python manage.py test estrutura pessoas agenda</code>). Nos testes de aceitação, o PKZ LAB executa os cenários abaixo no ambiente de produção e registra o resultado.
+Os testes automáticos já cobrem estas regras (<code>python manage.py test</code>, também rodado pelo GitHub Actions a cada push). Nos testes de aceitação, o PKZ LAB executa os cenários abaixo no ambiente de produção e registra o resultado.
 </p>
 
 | ID | Caso de uso | Cenário | Resultado esperado | Resultado |
@@ -72,10 +73,21 @@ Os testes automáticos já cobrem estas regras (<code>python manage.py test estr
 | AC11 | UC17 | Reservar equipamento de unidade única já reservada no mesmo horário | `400` no campo `equipamentos` e nada é gravado | Pendente |
 | AC12 | UC16/UC18 | Usuário sem perfil administrativo tenta criar serviço ou especialidade | `403` | Pendente |
 | AC13 | RN-06 | `DELETE` em um agendamento | `405`; o histórico é preservado | Pendente |
+| AC14 | UC01 | Login em `/api/token/` com a senha certa e com a senha errada | `200` com `access` e `refresh`; depois `401`, sem dizer qual dado falhou | Pendente |
+| AC15 | UC03 | Pedir a recuperação de senha com e-mail cadastrado e com e-mail inexistente; redefinir com o link | Mesma resposta nos dois casos; a senha nova funciona e o link não serve uma segunda vez | Pendente |
+| AC16 | UC05/UC07 | Agendar fora do turno do profissional e consultar `/api/horarios-livres/` | `400` no campo `profissional`; a consulta mostra só os horários livres | Pendente |
+| AC17 | UC21/UC06 | Entrar numa aula com a turma cheia | `400`; o atleta pode entrar na lista de espera da aula | Pendente |
+| AC18 | UC19/UC20 | Um aluno da aula cancela com alguém na lista de espera | O primeiro da fila recebe aviso da vaga com prazo; ao confirmar, vira agendamento da aula | Pendente |
+| AC19 | UC11/UC12 | Profissional registra presença e duas avaliações físicas do mesmo atleta | `201`; a segunda avaliação mostra a diferença para a anterior | Pendente |
+| AC20 | UC13 | Prescrever um segundo plano de treino para o atleta | O novo plano é a versão 2 e o anterior fica no histórico | Pendente |
+| AC21 | RNF03/UC14 | Recepção consulta `/api/avaliacoes/`, `/api/planos/` e a evolução de um atleta | Listas vazias e `404`: dado técnico é só da equipe técnica, do atleta e do responsável | Pendente |
+| AC22 | UC15 | Profissional e atleta pedem o relatório de desempenho | O profissional vê só o que ele avaliou e atendeu; o atleta recebe `403` | Pendente |
 
 ## 5. Fora do aceite desta versão
 
-Previstos nos documentos, mas ainda não implementados no back-end: disponibilidade e bloqueios (UC05), grade de aulas (UC21), lista de espera (UC19), lembretes automáticos (UC20), registro de atendimento, avaliações, planos de treino e relatórios (UC11 a UC15) e integração financeira (BS16).
+- **Integração com o sistema financeiro (BS16):** prevista nos documentos, fora do escopo desta versão.
+- **Front-end:** a entrega é a API REST; o aceite é feito pelo Swagger e pelo painel do administrador.
+- **Envio real de e-mail:** depende de um servidor SMTP do CT (seção 1). Até lá, os e-mails aparecem no log do servidor.
 
 ## 6. Critérios de aceite e pós-entrega
 
@@ -87,3 +99,4 @@ Previstos nos documentos, mas ainda não implementados no back-end: disponibilid
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação do plano de implantação e dos testes de aceitação | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 11/11/2026 | 1.1 | Cenários de aceite das funcionalidades novas (AC14 a AC22), treinamento por perfil, e-mail e escopo atualizados | Vitor Magalhães |

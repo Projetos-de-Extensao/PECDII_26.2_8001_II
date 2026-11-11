@@ -21,9 +21,10 @@ from .serializers import (AvaliacaoFisicaSerializer, ExercicioSerializer, Filtro
 
 
 def do_visivel(qs, usuario, campo=""):
-    # a equipe do CT vê todos; o atleta, os dele; o responsável, os dos dependentes (UC12, UC13 e UC14)
+    # dado técnico é sensível (RNF03): a equipe técnica (profissional e administração) vê todos; o atleta,
+    # os dele; o responsável, os dos dependentes (UC12, UC13 e UC14). A recepção não vê avaliação nem plano.
     # campo: o caminho até o Atleta ("atleta" numa avaliação, "" no próprio Atleta)
-    if tem_permissao(usuario, "ver_todas_as_pessoas"):
+    if da_equipe_tecnica(usuario):
         return qs
     prefixo = f"{campo}__" if campo else ""
     pode_ver = Q(pk__in=[])
