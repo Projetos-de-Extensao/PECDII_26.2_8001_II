@@ -6,7 +6,7 @@ from rest_framework import serializers
 from estrutura.models import Servico
 from pessoas.permissoes import tem_permissao
 
-from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, ListaEspera
 from .perfis import pode_agendar_para, profissional_de
 
 def erro_da_api(erro):
@@ -82,25 +82,6 @@ class AulaSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class InscricaoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Inscricao
-        fields = ["id", "aula", "atleta", "agendamento", "status", "criado_em"]
-        read_only_fields = ["criado_em"]
-
-    def validate(self, attrs):
-        usuario = self.context["request"].user
-        atleta = attrs.get("atleta") or getattr(self.instance, "atleta", None)
-        if atleta and not pode_agendar_para(usuario, atleta):
-            raise serializers.ValidationError({"atleta": "Você só pode se inscrever para você mesmo ou para os seus dependentes."})
-        dados = _dados_com_instancia(self.instance, attrs, ("aula", "atleta", "agendamento", "status"))
-        try:
-            Inscricao(pk=self.instance.pk if self.instance else None, **dados).clean()
-        except DjangoValidationError as e:
-            raise erro_da_api(e)
-        return attrs
-
-
 class ListaEsperaSerializer(serializers.ModelSerializer):
     # UC19: para entrar na fila, mande a aula (aula em grupo) ou serviço, profissional e início (individual)
     posicao = serializers.IntegerField(read_only=True, allow_null=True,
@@ -155,6 +136,18 @@ class RegistrarAtendimentoSerializer(serializers.Serializer):
 class HorariosLivresQuerySerializer(serializers.Serializer):
     servico = serializers.PrimaryKeyRelatedField(queryset=Servico.objects.filter(ativo=True))
     dia = serializers.DateField()
+
+
+class HorarioLivreSerializer(serializers.Serializer):
+    inicio = serializers.DateTimeField()
+    fim = serializers.DateTimeField()
+    profissional = serializers.IntegerField()
+    espaco = serializers.IntegerField()
+
+
+class HorariosLivresSerializer(serializers.Serializer):
+    # só descreve a resposta no Swagger; quem monta a lista é a view
+    results = HorarioLivreSerializer(many=True)
 
 
 class AvisoSerializer(serializers.ModelSerializer):

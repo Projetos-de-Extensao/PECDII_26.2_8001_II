@@ -41,33 +41,89 @@ class Aula(models.Model):
         verbose_name = "aula"
         verbose_name_plural = "aulas"
 
-    def clean(self):
+    CAMPOS_DO_HORARIO = ("servico_id", "profissional_id", "espaco_id", "dia", "hora_inicio")
+
+    def _gravada(self):
+        # como a aula está no banco agora (antes desta edição); None se ainda não foi gravada
+        if self.pk is None:
+            return None
+        return Aula.objects.filter(pk=self.pk).values(*self.CAMPOS_DO_HORARIO, "ativo").first()
+
+    def _mudou_o_horario(self, gravada):
+        return gravada is not None and any(gravada[campo] != getattr(self, campo) for campo in self.CAMPOS_DO_HORARIO)
+
+    def aulas_no_mesmo_horario(self):
+        # outras aulas ativas que encostam no horário desta (mesmo dia, horários se sobrepõem)
+        fim = (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).time()
+        return Aula.objects.filter(ativo=True, dia=self.dia, hora_inicio__lt=fim,
+                                   hora_fim__gt=self.hora_inicio).exclude(pk=self.pk)
+
+    def clean(self, agora=None):
         erros = {}
+        def adicionar_erro(campo, mensagem):
+            erros.setdefault(campo, []).append(mensagem)
+
+        if self.servico_id and not self.servico.em_grupo:
+            adicionar_erro("servico", "Aula em grupo precisa de um serviço com mais de 1 vaga.")
         if self.servico_id and self.profissional_id and not self.profissional.atende(self.servico.especialidade):
-            erros.setdefault("profissional", []).append("Este profissional não atende a especialidade do serviço.")
+            adicionar_erro("profissional", "Este profissional não atende a especialidade do serviço.")
         if self.espaco_id and self.servico_id and not self.servico.espacos_possiveis().filter(pk=self.espaco_id).exists():
-            erros.setdefault("espaco", []).append("Esta sala não é usada por este serviço.")
-        if self.profissional_id and self.espaco_id and self.servico_id:
-            conflito = Agendamento.objects.filter(
-                status=Agendamento.Status.AGENDADO,
-                inicio__lt=self.inicio + self.servico.duracao,
-                fim__gt=self.inicio,
-            )
-            if self.pk:
-                conflito = conflito.exclude(aula_id=self.pk)  # os alunos da própria turma não são conflito
-            if self.profissional_id:
-                if conflito.filter(profissional_id=self.profissional_id).exists():
-                    erros.setdefault("profissional", []).append("O profissional já tem um agendamento nesse horário.")
-            if self.espaco_id:
-                if conflito.filter(espaco_id=self.espaco_id).exists():
-                    erros.setdefault("espaco", []).append("A sala já está ocupada nesse horário.")
+            adicionar_erro("espaco", "Esta sala não é usada por este serviço.")
         if self.profissional_id and self.servico_id and hasattr(self.profissional, "funcionario"):
             if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
-                erros.setdefault("profissional", []).append("Este profissional está inativo.")
-        if self.servico_id and self.dia and self.hora_inicio:
-            # o fim vem da duração do serviço (o hora_fim gravado pode ser de antes desta edição)
-            if (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).date() != self.dia:
-                erros.setdefault("hora_inicio", []).append("A aula precisa terminar no mesmo dia.")
+                adicionar_erro("profissional", "Este profissional está inativo.")
+        if not (self.servico_id and self.profissional_id and self.espaco_id and self.dia and self.hora_inicio):
+            if erros:
+                raise ValidationError(erros)
+            return  # campo faltando: quem avisa é a validação do próprio campo
+
+        # o fim vem da duração do serviço (o hora_fim gravado pode ser de antes desta edição)
+        if (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).date() != self.dia:
+            adicionar_erro("hora_inicio", "A aula precisa terminar no mesmo dia.")
+            raise ValidationError(erros)
+
+        gravada = self._gravada()
+        alunos = self.agendamentos.filter(status=Agendamento.Status.AGENDADO) if self.pk else Agendamento.objects.none()
+        if gravada and gravada["servico_id"] != self.servico_id and alunos.exists():
+            adicionar_erro("servico", "Não dá para trocar o serviço de uma aula que já tem alunos.")
+
+        # UC21: a agenda só é conferida quando a aula reserva um horário novo
+        # (aula nova, mudou dia/hora/sala/professor, ou foi reativada). Desativar ou não mexer no horário não confere.
+        reativou = gravada is not None and self.ativo and not gravada["ativo"]
+        if self.ativo and (gravada is None or self._mudou_o_horario(gravada) or reativou):
+            inicio, fim = self.inicio, self.fim
+            if inicio <= (agora or timezone.now()):
+                adicionar_erro("hora_inicio", "Esse horário já passou.")
+            if not Disponibilidade.objects.filter(profissional_id=self.profissional_id,
+                                                  dia_da_semana=self.dia.weekday(),
+                                                  hora_inicio__lte=self.hora_inicio,
+                                                  hora_fim__gte=timezone.localtime(fim).time()).exists():
+                adicionar_erro("profissional", "O horário está fora da disponibilidade do profissional.")
+            if Bloqueio.objects.filter(profissional_id=self.profissional_id, inicio__lt=fim, fim__gt=inicio).exists():
+                adicionar_erro("profissional", "O profissional está bloqueado nesse horário.")
+            if Bloqueio.objects.filter(espaco_id=self.espaco_id, inicio__lt=fim, fim__gt=inicio).exists():
+                adicionar_erro("espaco", "A sala está bloqueada nesse horário.")
+
+            outras_aulas = self.aulas_no_mesmo_horario()
+            individuais = Agendamento.objects.filter(status=Agendamento.Status.AGENDADO, aula__isnull=True,
+                                                     inicio__lt=fim, fim__gt=inicio)
+            # UC21 passo 4: o professor não dá outra aula nem tem atendimento no mesmo horário
+            if outras_aulas.filter(profissional_id=self.profissional_id).exists():
+                adicionar_erro("profissional", "O professor já dá outra aula nesse horário.")
+            if individuais.filter(profissional_id=self.profissional_id).exists():
+                adicionar_erro("profissional", "O profissional já tem um agendamento nesse horário.")
+            # UC21 passo 3: a sala está livre, respeitando a capacidade (cada aula ou atendimento ocupa 1)
+            ocupacao = (outras_aulas.filter(espaco_id=self.espaco_id).count()
+                        + individuais.filter(espaco_id=self.espaco_id).count())
+            if ocupacao >= self.espaco.capacidade:
+                adicionar_erro("espaco", "A sala já está ocupada nesse horário.")
+            # mudar o horário leva os alunos junto: nenhum deles pode ter outro compromisso no horário novo
+            for agendamento in alunos.select_related("atleta__usuario"):
+                ocupado = Agendamento.objects.filter(atleta_id=agendamento.atleta_id,
+                                                     status=Agendamento.Status.AGENDADO,
+                                                     inicio__lt=fim, fim__gt=inicio).exclude(aula_id=self.pk)
+                if ocupado.exists():
+                    adicionar_erro("hora_inicio", f"{agendamento.atleta} já tem outro agendamento no horário novo.")
         if erros:
             raise ValidationError(erros)
 
@@ -87,8 +143,6 @@ class Aula(models.Model):
     def vagas_restantes(self):
         total = self.servico.vagas if self.servico_id else 0
         usados = self.agendamentos.filter(status=Agendamento.Status.AGENDADO).count()
-        usados += sum(1 for inscricao in self.inscricoes.filter(status=Inscricao.Status.CONFIRMADA)
-                      if not inscricao.agendamento_id or inscricao.agendamento.aula_id != self.pk)
         # UC19: vaga oferecida a quem estava na lista de espera fica guardada até ele responder
         usados += ListaEspera.objects.filter(status=ListaEspera.Status.OFERECIDA, aula_id=self.pk).count()
         return max(total - usados, 0)
@@ -97,11 +151,32 @@ class Aula(models.Model):
     def lotada(self):
         return self.vagas_restantes <= 0 if self.servico_id else True
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        gravada = self._gravada()
         # recalcula sempre: mudar o início ou o serviço numa edição muda o fim também
         if self.servico_id and self.dia and self.hora_inicio:
             self.hora_fim = (datetime.combine(self.dia, self.hora_inicio) + self.servico.duracao).time()
         super().save(*args, **kwargs)
+        if self._mudou_o_horario(gravada):
+            self._levar_os_alunos()
+
+    def _levar_os_alunos(self):
+        # a aula mudou de dia, hora, sala ou professor: os agendamentos dos alunos vão junto e eles são avisados
+        alunos = list(self.agendamentos.filter(status=Agendamento.Status.AGENDADO).select_related(
+            "atleta__usuario", "atleta__responsavel__usuario"))
+        for agendamento in alunos:
+            agendamento.inicio, agendamento.fim = self.inicio, self.fim
+            agendamento.espaco_id, agendamento.profissional_id = self.espaco_id, self.profissional_id
+            agendamento.lembrete_enviado_em = None  # horário novo, lembrete novo (UC20)
+        Agendamento.objects.bulk_update(alunos, ["inicio", "fim", "espaco", "profissional", "lembrete_enviado_em"])
+        ListaEspera.objects.filter(aula=self, status__in=ListaEspera.ATIVOS).update(
+            inicio=self.inicio, profissional_id=self.profissional_id)
+        texto = (f"A aula de {self.servico} mudou: agora é dia {self.dia:%d/%m} às {self.hora_inicio:%H:%M}, "
+                 f"na sala {self.espaco}.")
+        for agendamento in alunos:
+            for usuario in quem_avisar(agendamento.atleta):
+                Aviso.avisar(usuario, texto)
 
     def __str__(self):
         if self.dia:
@@ -149,6 +224,9 @@ class Agendamento(models.Model):
         if self.pk is None and self.inicio and self.inicio <= (agora or timezone.now()):
             adicionar_erro("inicio", "Esse horário já passou.")
 
+        if self.servico_id and self.servico.em_grupo and not self.aula_id:
+            adicionar_erro("aula", "Este serviço é em grupo: escolha uma aula da grade.")
+
         if self.aula_id:
             aula = self.aula
             if not aula.ativo and self.pk is None:
@@ -186,8 +264,13 @@ class Agendamento(models.Model):
                                                    vaga__inicio__lt=fim, vaga__fim__gt=self.inicio)
             if self.atleta_id:
                 guardadas = guardadas.exclude(atleta_id=self.atleta_id)
-            # colegas da mesma turma não são conflito de profissional nem de sala: o limite da aula são as vagas
-            conflitos_de_agenda = conflitos.exclude(aula_id=self.aula_id) if self.aula_id else conflitos
+            # atendimentos individuais e aulas em grupo ocupam o profissional e a sala. Os alunos de uma aula não
+            # contam um por um: quem ocupa é a aula (a turma cabe na sala e o limite dela são as vagas).
+            individuais = conflitos.filter(aula__isnull=True)
+            aulas = Aula.objects.filter(ativo=True, dia=inicio_local.date(), hora_inicio__lt=fim_local.time(),
+                                        hora_fim__gt=inicio_local.time())
+            if self.aula_id:
+                aulas = aulas.exclude(pk=self.aula_id)
 
             if self.profissional_id:
                 if not self.profissional.ativo or not self.profissional.funcionario.usuario.is_active:
@@ -197,8 +280,10 @@ class Agendamento(models.Model):
                     hora_inicio__lte=inicio_local.time(), hora_fim__gte=fim_local.time()).exists())
                 if not turno:
                     adicionar_erro("profissional", "O horário está fora da disponibilidade do profissional.")
-                if conflitos_de_agenda.filter(profissional_id=self.profissional_id).exists():
+                if individuais.filter(profissional_id=self.profissional_id).exists():
                     adicionar_erro("profissional", "O profissional já tem um agendamento nesse horário.")
+                if aulas.filter(profissional_id=self.profissional_id).exists():
+                    adicionar_erro("profissional", "O profissional dá uma aula em grupo nesse horário.")
                 if guardadas.filter(vaga__profissional_id=self.profissional_id).exists():
                     adicionar_erro("profissional", "Este horário está guardado para quem estava na lista de espera.")
                 if Bloqueio.objects.filter(profissional_id=self.profissional_id,
@@ -208,8 +293,9 @@ class Agendamento(models.Model):
             if self.atleta_id and conflitos.filter(atleta_id=self.atleta_id).exists():
                 adicionar_erro("atleta", "O atleta já tem um agendamento nesse horário.")
 
-            if self.espaco_id:
-                ocupacao = (conflitos_de_agenda.filter(espaco_id=self.espaco_id).count()
+            if self.espaco_id and not self.aula_id:  # numa aula, a sala já foi reservada no cadastro dela (UC21)
+                ocupacao = (individuais.filter(espaco_id=self.espaco_id).count()
+                            + aulas.filter(espaco_id=self.espaco_id).count()
                             + guardadas.filter(vaga__espaco_id=self.espaco_id).count())
                 if ocupacao >= self.espaco.capacidade:
                     adicionar_erro("espaco", "A sala já atingiu sua capacidade nesse horário.")
@@ -306,69 +392,6 @@ class Agendamento(models.Model):
             return f"{self.protocolo} - {self.atleta} com {self.profissional} em {self.inicio:%d/%m %H:%M}"
 
 
-class Inscricao(models.Model):
-    class Status(models.TextChoices):
-        CONFIRMADA = "CONFIRMADA", "Confirmada"
-        CANCELADA = "CANCELADA", "Cancelada"
-
-    aula = models.ForeignKey("Aula", on_delete=models.PROTECT, related_name="inscricoes")
-    atleta = models.ForeignKey(Atleta, on_delete=models.PROTECT, related_name="inscricoes")
-    agendamento = models.OneToOneField("Agendamento", null=True, blank=True, on_delete=models.PROTECT,
-                                      related_name="inscricao")
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.CONFIRMADA)
-    criado_em = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["aula__dia", "aula__hora_inicio", "atleta__usuario__first_name"]
-        unique_together = ("aula", "atleta")
-
-    def _gravada(self):
-        # (status, aula_id) como está no banco agora; None se a inscrição ainda não foi gravada
-        if self.pk is None:
-            return None
-        return Inscricao.objects.filter(pk=self.pk).values_list("status", "aula_id").first()
-
-    def _ocupava_vaga(self, gravada):
-        return gravada is not None and gravada[0] == self.Status.CONFIRMADA
-
-    def clean(self):
-        erros = {}
-        if self.agendamento_id and self.agendamento.aula_id and self.agendamento.aula_id != self.aula_id:
-            erros.setdefault("agendamento", []).append("A inscrição deve referenciar o mesmo agendamento da aula.")
-        if self.status == self.Status.CONFIRMADA:
-            gravada = self._gravada()
-            # quem já ocupava a vaga nesta turma não conta de novo; quem entra agora (inscrição nova,
-            # reconfirmação depois de cancelar ou troca de turma) precisa de vaga livre
-            if not (self._ocupava_vaga(gravada) and gravada[1] == self.aula_id) and self.aula.lotada:
-                erros.setdefault("aula", []).append("A turma está lotada.")
-            repetida = Inscricao.objects.filter(aula_id=self.aula_id, atleta_id=self.atleta_id,
-                                                status=self.Status.CONFIRMADA).exclude(pk=self.pk)
-            if repetida.exists():
-                erros.setdefault("atleta", []).append("Este atleta já está inscrito nesta aula.")
-        if erros:
-            raise ValidationError(erros)
-
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        gravada = self._gravada()
-        super().save(*args, **kwargs)
-        # UC19: cancelou ou trocou de turma -> a vaga que ele ocupava vai para o primeiro da lista de espera
-        if self._ocupava_vaga(gravada) and (self.status != self.Status.CONFIRMADA or gravada[1] != self.aula_id):
-            ListaEspera.oferecer_vaga(aula=Aula.objects.get(pk=gravada[1]))
-
-    @transaction.atomic
-    def delete(self, *args, **kwargs):
-        ocupava = self._ocupava_vaga(self._gravada())
-        aula = self.aula
-        resultado = super().delete(*args, **kwargs)
-        if ocupava:
-            ListaEspera.oferecer_vaga(aula=aula)
-        return resultado
-
-    def __str__(self):
-        return f"{self.atleta} -> {self.aula}"
-
-
 class ListaEspera(models.Model):
     # UC19: fila de quem quer um horário ocupado (atendimento individual) ou uma vaga numa turma lotada (aula).
     # Quando alguém cancela, a vaga é oferecida ao primeiro da fila, que tem um prazo para confirmar.
@@ -461,9 +484,8 @@ class ListaEspera(models.Model):
 
     @classmethod
     def oferecer_vaga(cls, vaga=None, agora=None, aula=None):
-        # vaga = o agendamento que liberou o horário. Numa aula em grupo, a vaga também pode abrir por uma
-        # inscrição cancelada, que não tem agendamento: aí vem só a aula. Devolve a espera que recebeu a
-        # oferta, ou None.
+        # vaga = o agendamento que liberou o horário (numa aula em grupo, o agendamento do aluno que saiu).
+        # Devolve a espera que recebeu a oferta, ou None.
         agora = agora or timezone.now()
         aula = aula or (vaga.aula if vaga and vaga.aula_id else None)
         prazo = Configuracao.atual().prazo_para_confirmar(aula.inicio if aula else vaga.inicio, agora)
@@ -507,7 +529,7 @@ class ListaEspera(models.Model):
             raise ValidationError("O prazo para confirmar essa vaga já acabou.")
         self.status = self.Status.CONFIRMADA  # primeiro sai da reserva, senão a própria oferta bloquearia a vaga
         self.save(update_fields=["status"])
-        # numa aula, o horário e a sala são os da turma (a vaga pode ter vindo de uma inscrição, sem agendamento)
+        # numa aula, o horário e a sala são os da turma
         espaco = self.aula.espaco if self.aula_id else self.vaga.espaco
         novo = Agendamento(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
                            espaco=espaco, aula=self.aula, inicio=self.inicio)

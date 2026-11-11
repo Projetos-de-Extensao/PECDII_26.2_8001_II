@@ -362,7 +362,7 @@ class AulaEmGrupo(Base):
         self.assertEqual(self.aula.vagas_restantes, 2)
         self.assertFalse(self.aula.lotada)
 
-    def test_turma_cheia_recusa_nova_inscricao(self):
+    def test_turma_cheia_recusa_novo_aluno(self):
         atleta2 = atleta("maria-aula", "Maria")
         Agendamento.objects.create(atleta=self.joao, servico=self.servico_grupo, profissional=self.nutricionista,
                                    espaco=self.consultorio, aula=self.aula, inicio=self.aula.inicio)

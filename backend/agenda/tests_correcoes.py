@@ -8,90 +8,83 @@ from rest_framework.test import APIClient
 from pessoas.cadastros import cadastrar_responsavel
 from pkzlab.testes_comuns import atleta, hora, usuario_com_papel
 
-from .models import Agendamento, Aula, Aviso, Inscricao, ListaEspera
+from .models import Agendamento, Aula, Aviso, ListaEspera
 from .tests import Base
 from .tests_lista_espera import ComTurma
 
 
-class InscricaoNaTurma(ComTurma):
-    # turma de 2 vagas (pilates) na segunda às 10h
+class EntrarNaTurma(ComTurma):
+    # turma de 2 vagas (pilates) na segunda às 10h. Entrar na aula = agendamento com aula (UC06 A2).
+    # self.inscrever(quem) vem do ComTurma e cria o agendamento da aula passando pelo clean().
 
-    def inscrever_direto(self, quem):
-        inscricao = Inscricao(aula=self.aula, atleta=quem)
-        inscricao.clean()
-        inscricao.save()
-        return inscricao
-
-    def test_reconfirmar_depois_de_cancelar_precisa_de_vaga(self):
-        joao = self.inscrever_direto(self.joao)
-        self.inscrever_direto(self.ana)
-        joao.status = Inscricao.Status.CANCELADA
-        joao.save()
-        self.inscrever_direto(self.maria)  # a Maria pega a vaga que o João largou
-        joao.status = Inscricao.Status.CONFIRMADA
+    def test_voltar_depois_de_cancelar_precisa_de_vaga(self):
+        joao = self.inscrever(self.joao)
+        self.inscrever(self.ana)
+        joao.cancelar("Não vou poder ir.")
+        self.inscrever(self.maria)  # a Maria pega a vaga que o João largou
         with self.assertRaises(ValidationError) as erro:
-            joao.clean()
+            self.inscrever(self.joao)
         self.assertIn("aula", erro.exception.message_dict)
 
-    def test_quem_ja_ocupa_a_vaga_continua_valido_com_a_turma_cheia(self):
-        self.inscrever_direto(self.joao)
-        ana = self.inscrever_direto(self.ana)
-        self.assertTrue(self.aula.lotada)
-        ana.clean()  # editar a inscrição de quem já está na turma não pede vaga nova
+    def test_voltar_depois_de_cancelar_com_vaga_livre_funciona(self):
+        joao = self.inscrever(self.joao)
+        joao.cancelar("Errei o dia.")
+        self.inscrever(self.joao)  # não existe trava de "já inscrito" para quem cancelou
+        self.assertEqual(self.aula.agendamentos.filter(atleta=self.joao, status=Agendamento.Status.AGENDADO).count(), 1)
 
-    def test_trocar_para_turma_cheia_e_recusado(self):
-        self.inscrever_direto(self.joao)
-        self.inscrever_direto(self.ana)
-        outra = Aula.objects.create(servico=self.pilates, profissional=self.nutricionista, espaco=self.consultorio,
-                                    dia=hora(2, 11).date(), hora_inicio=hora(2, 11).time())
-        maria = Inscricao.objects.create(aula=outra, atleta=self.maria)
-        maria.aula = self.aula
-        with self.assertRaises(ValidationError):
-            maria.clean()
+    def test_mesmo_atleta_nao_ocupa_duas_vagas(self):
+        self.inscrever(self.joao)
+        with self.assertRaises(ValidationError) as erro:
+            self.inscrever(self.joao)
+        self.assertIn("atleta", erro.exception.message_dict)
+        self.assertEqual(self.aula.vagas_restantes, 1)
 
-    def test_cancelar_a_inscricao_oferece_a_vaga_para_a_fila(self):
-        joao = self.inscrever_direto(self.joao)
-        self.inscrever_direto(self.ana)
+    def test_cancelar_oferece_a_vaga_para_a_fila(self):
+        joao = self.inscrever(self.joao)
+        self.inscrever(self.ana)
         maria = self.entrar(self.maria, aula=self.aula)
-        joao.status = Inscricao.Status.CANCELADA
-        joao.save()
+        joao.cancelar("Não vou poder ir.")
         maria.refresh_from_db()
         self.assertEqual(maria.status, ListaEspera.Status.OFERECIDA)
         self.assertTrue(self.aula.lotada)  # a vaga fica guardada para a Maria
         novo = maria.confirmar()
         self.assertEqual((novo.aula, novo.inicio, novo.espaco), (self.aula, self.aula.inicio, self.consultorio))
 
-    def test_apagar_a_inscricao_tambem_oferece_a_vaga(self):
-        joao = self.inscrever_direto(self.joao)
-        self.inscrever_direto(self.ana)
-        maria = self.entrar(self.maria, aula=self.aula)
-        joao.delete()
-        maria.refresh_from_db()
-        self.assertEqual(maria.status, ListaEspera.Status.OFERECIDA)
-
-    def test_recusar_passa_a_vaga_da_inscricao_para_o_proximo(self):
-        joao = self.inscrever_direto(self.joao)
-        self.inscrever_direto(self.ana)
+    def test_recusar_passa_a_vaga_para_o_proximo(self):
+        joao = self.inscrever(self.joao)
+        self.inscrever(self.ana)
         maria = self.entrar(self.maria, aula=self.aula)
         pedro = self.entrar(atleta("pedro", "Pedro"), aula=self.aula)
-        joao.status = Inscricao.Status.CANCELADA
-        joao.save()
+        joao.cancelar("Não vou poder ir.")
         maria.refresh_from_db()
         maria.recusar()
         pedro.refresh_from_db()
         self.assertEqual(pedro.status, ListaEspera.Status.OFERECIDA)
 
-    def test_responsavel_ve_a_inscricao_do_dependente(self):
+    def test_responsavel_coloca_o_dependente_na_aula(self):
         mae = cadastrar_responsavel(email="mae@x.com", nome="Mãe", senha="senha12345", aceitou_termos=True)
         filho = atleta("filho", "Filho", nascimento=hora(2, 9).date() - timedelta(days=365 * 12), responsavel=mae)
         api = APIClient()
         api.force_authenticate(mae.usuario)
-        r = api.post("/api/inscricoes/", {"aula": self.aula.pk, "atleta": filho.pk})
+        r = api.post("/api/agendamentos/", {"aula": self.aula.pk, "atleta": filho.pk})
         self.assertEqual(r.status_code, 201, r.data)
-        self.assertEqual(api.get("/api/inscricoes/").data["count"], 1)
-        # e não vê a de quem não é dependente dela
-        self.inscrever_direto(self.joao)
-        self.assertEqual(api.get("/api/inscricoes/").data["count"], 1)
+        self.assertEqual(api.get("/api/agendamentos/").data["count"], 1)
+        # e não vê o de quem não é dependente dela
+        self.inscrever(self.joao)
+        self.assertEqual(api.get("/api/agendamentos/").data["count"], 1)
+
+    def test_nao_coloca_atleta_de_outra_pessoa_na_aula(self):
+        mae = cadastrar_responsavel(email="mae@x.com", nome="Mãe", senha="senha12345", aceitou_termos=True)
+        api = APIClient()
+        api.force_authenticate(mae.usuario)
+        r = api.post("/api/agendamentos/", {"aula": self.aula.pk, "atleta": self.joao.pk})
+        self.assertIn(r.status_code, (400, 403))
+        self.assertFalse(self.aula.agendamentos.exists())
+
+    def test_rota_de_inscricoes_nao_existe_mais(self):
+        api = APIClient()
+        api.force_authenticate(usuario_com_papel("adm", "administrador"))
+        self.assertEqual(api.get("/api/inscricoes/").status_code, 404)
 
 
 class AgendamentoDaAulaPelaApi(ComTurma):

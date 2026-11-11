@@ -7,7 +7,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from agenda.models import Agendamento, Atendimento, Aula, Inscricao
+from agenda.models import Agendamento, Atendimento, Aula
 from pessoas.models import Atleta
 from pessoas.permissoes import tem_permissao
 
@@ -25,9 +25,9 @@ class ComandoPopularDemo(TestCase):
         saida = popular()
         self.assertIn("senha12345", saida)
         self.assertEqual(Atleta.objects.count(), 4)
-        self.assertEqual(Agendamento.objects.filter(status=Agendamento.Status.AGENDADO).count(), 11)
+        self.assertEqual(Agendamento.objects.filter(status=Agendamento.Status.AGENDADO).count(), 13)  # 11 individuais + 2 na aula
         self.assertEqual(Atendimento.objects.filter(status=Atendimento.Status.FALTA).count(), 1)
-        self.assertEqual(Aula.objects.get().inscricoes.filter(status=Inscricao.Status.CONFIRMADA).count(), 2)
+        self.assertEqual(Aula.objects.get().agendamentos.filter(status=Agendamento.Status.AGENDADO).count(), 2)
         self.assertEqual(AvaliacaoFisica.objects.filter(atleta__usuario__username="joao@pkzlab.demo").count(), 3)
         plano = PlanoTreino.objects.get(atleta__usuario__username="joao@pkzlab.demo", ativo=True)
         self.assertEqual(plano.versao, 2)

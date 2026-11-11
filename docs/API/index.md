@@ -36,7 +36,16 @@ Sem login, qualquer endpoint responde `403`, com duas exceções que são aberta
 | Profissionais | `/api/profissionais/` | Só consulta (cadastro pelo painel) | UC04 |
 | Atletas | `/api/atletas/` | Qualquer visitante cria; cada um vê o que lhe cabe | UC02 |
 | Responsáveis | `/api/responsaveis/` | Qualquer visitante cria | UC02 |
-| Agendamentos | `/api/agendamentos/` | Atleta, responsável, equipe | UC06, UC08, UC09, UC10 |
+| Agendamentos | `/api/agendamentos/` (+ `/{id}/cancelar/`, `/{id}/reagendar/`, `/{id}/atendimento/`) | Atleta, responsável, equipe | UC06, UC08, UC09, UC10, UC11 |
+| Horários livres | `/api/horarios-livres/?servico=&dia=` | Só consulta | UC06, UC07 |
+| Grade de aulas | `/api/aulas/` | Equipe administrativa | UC21 |
+| Lista de espera | `/api/lista-espera/` (+ `/{id}/confirmar/`, `/{id}/recusar/`, `/{id}/sair/`) | Atleta, responsável, equipe | UC19 |
+| Atendimentos | `/api/atendimentos/` | Só consulta (registro pelo agendamento) | UC11 |
+| Disponibilidade | `/api/disponibilidades/` | O próprio profissional e a administração | UC05 |
+| Bloqueios | `/api/bloqueios/` | Equipe administrativa | UC05, UC17 |
+| Avaliações físicas | `/api/avaliacoes/` | Equipe técnica | UC12 |
+| Exercícios e planos de treino | `/api/exercicios/`, `/api/planos/` | Equipe técnica | UC13 |
+| Evolução e relatório | `/api/atletas/{id}/evolucao/`, `/api/relatorios/desempenho/` | Só consulta | UC14, UC15 |
 | Avisos | `/api/avisos/` | Só leitura e marcar como lido | UC20 |
 
 As permissões da API vêm dos grupos Django correspondentes aos papéis ativos do funcionário:
@@ -139,6 +148,22 @@ Erros de regra de negócio voltam como `400`, com o nome do campo:
 
 Se a reserva do equipamento falhar, o agendamento também não é gravado.
 
+### Entrar numa aula em grupo (UC06 A2)
+
+Entrar numa aula é criar um agendamento ligado a ela. Basta mandar a aula: serviço, profissional, sala e horário vêm da própria aula.
+
+```bash
+curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/ \
+  -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+  -d '{ "atleta": 1, "aula": 3 }'
+```
+
+- Turma cheia, aula desativada ou horário que já passou: `400` no campo `aula` ou `inicio`. Com a turma cheia, o atleta pode entrar na lista de espera (`/api/lista-espera/` com a `aula`).
+- O mesmo atleta não ocupa duas vagas na mesma aula.
+- Serviço em grupo (mais de 1 vaga) só se marca pela aula.
+- Para sair da aula, cancele o agendamento (`/{id}/cancelar/`): a vaga vai para o primeiro da lista de espera.
+- Se a administração mudar o dia, a hora, a sala ou o professor da aula, os agendamentos dos alunos vão junto e eles recebem um aviso.
+
 ### Consultar a agenda (UC10)
 
 ```bash
@@ -179,17 +204,14 @@ A API não cria nem apaga avisos: quem cria é o sistema (hoje, ao cancelar um a
 | Código | Significado |
 | -- | -- |
 | `200` / `201` | Sucesso / criado |
-| `400` | Regra de negócio ou dado inválido (o corpo diz o campo) |
+| `400` | Regra de negócio ou dado inválido (o corpo diz o campo). Também ao apagar algo que ainda está em uso (ex.: sala com agendamentos): desative em vez de apagar |
 | `403` | Sem login ou sem permissão para a operação |
 | `404` | Não existe ou não pertence ao usuário (para não revelar dados de terceiros) |
 | `405` | Operação não existe para o recurso (ex.: apagar agendamento) |
-
-## Ainda não disponível
-
-Disponibilidade e bloqueios, grade de aulas, lista de espera, registro de atendimento, avaliações, planos de treino e relatórios estão nos documentos de casos de uso, mas ainda não têm endpoint.
 
 ## Autor(es)
 
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação da página da API (links do Swagger, autenticação, recursos e exemplos) | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
+| 11/11/2026 | 1.1 | Todos os recursos da API na tabela, exemplo de entrada em aula em grupo e erro ao apagar registro em uso | Filipe Andrade |

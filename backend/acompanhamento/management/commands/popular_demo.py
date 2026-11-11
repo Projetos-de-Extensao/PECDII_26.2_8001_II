@@ -9,7 +9,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 from acompanhamento.models import AvaliacaoFisica, Exercicio, PlanoTreino
-from agenda.models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao
+from agenda.models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade
 from estrutura.models import Equipamento, Espaco, Especialidade, Servico
 from pessoas.cadastros import cadastrar_atleta, cadastrar_funcionario, cadastrar_responsavel
 from pessoas.models import Administrador, Profissional, Recepcao
@@ -156,15 +156,16 @@ class Command(BaseCommand):
         cancelado = self.agendar(self.pedro, self.treino, self.teo, self.musculacao, as_(mais_um, 9))
         cancelado.cancelar("Viagem a trabalho.")
 
-        # aula em grupo de pilates com duas inscrições
+        # aula em grupo de pilates com dois alunos (UC06 A2: o atleta escolhe a aula e vira um agendamento)
         aula = Aula(servico=self.pilates, profissional=self.lia, espaco=self.studio, dia=mais_um,
                     hora_inicio=time(15))
         aula.clean()
         aula.save()
         for atleta in (self.maria, self.joao):
-            inscricao = Inscricao(aula=aula, atleta=atleta)
-            inscricao.clean()
-            inscricao.save()
+            no_grupo = Agendamento(atleta=atleta, servico=aula.servico, profissional=aula.profissional,
+                                   espaco=aula.espaco, aula=aula, inicio=aula.inicio)
+            no_grupo.clean()
+            no_grupo.save()
 
         Bloqueio.objects.create(espaco=self.consultorio2, inicio=as_(amanha, 14), fim=as_(amanha, 18),
                                 motivo="Manutenção do ar-condicionado.")

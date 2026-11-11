@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, Inscricao, ListaEspera
+from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, ListaEspera
 
 
 @admin.register(Aula)
@@ -19,13 +19,6 @@ class AgendamentoAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False  # agendamento não se apaga: cancela (UC09)
-
-
-@admin.register(Inscricao)
-class InscricaoAdmin(admin.ModelAdmin):
-    list_display = ("aula", "atleta", "status", "criado_em")
-    list_filter = ("status", "aula__servico")
-    search_fields = ("atleta__usuario__username", "aula__servico__nome")
 
 
 @admin.register(ListaEspera)
