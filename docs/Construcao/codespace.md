@@ -1,86 +1,58 @@
-# Codespaces# GitHub Codespaces
+---
+id: ambiente
+title: Ambiente e servidor
+---
 
-## Introdução ao GitHub Codespaces
+## Introdução
 
-O GitHub Codespaces é um ambiente de desenvolvimento na nuvem que permite codificar diretamente no seu navegador ou através do Visual Studio Code. Ele oferece uma máquina virtual pré-configurada com todas as ferramentas necessárias para seu projeto.
+<p align="justify">
+Esta página mostra como o grupo roda o projeto na própria máquina e como funciona o servidor de demonstração na AWS, que o professor e o PKZ LAB usam para testar a API sem instalar nada.
+</p>
 
-### Configuração Inicial
+## Ambiente de desenvolvimento
 
-#### 1. Acesso ao Codespaces
+Cada integrante roda o projeto na própria máquina, com Python 3.12 e um ambiente virtual:
 
-- **Via GitHub.com**:
-  - Navegue até seu repositório no GitHub
-  - Clique no botão "Code" e selecione a aba "Codespaces"
-  - Clique em "Create codespace on main" (ou no branch desejado)
+```bash
+python3 -m venv venv
+source venv/bin/activate              # no Windows: venv\Scripts\activate
+pip install -r backend/requirements.txt
+cd backend
+python manage.py migrate              # cria o banco SQLite
+python manage.py popular_demo         # dados de exemplo (senha senha12345)
+python manage.py runserver            # http://127.0.0.1:8000/api/docs/
+```
 
-- **Via Visual Studio Code**:
-  - Instale a extensão "GitHub Codespaces" na marketplace do VS Code
-  - Faça login com sua conta GitHub
-  - Acesse a paleta de comandos (Ctrl+Shift+P ou Cmd+Shift+P) e digite "Codespaces: Create New Codespace"
+| Comando | Para que serve |
+| -- | -- |
+| `python manage.py test` | Roda todos os testes, igual ao GitHub Actions |
+| `python manage.py makemigrations --check --dry-run` | Confere se alguma mudança nos models ficou sem migração |
+| `python manage.py rotinas_da_agenda` | Vence as ofertas da lista de espera e envia os lembretes de 24 horas |
+| `mkdocs serve -a 127.0.0.1:8001` (na raiz, depois de `pip install -r requirements.txt`) | Mostra esta documentação em http://127.0.0.1:8001, sem brigar pela porta do Django |
 
-#### 2. Configuração do Ambiente
-- O Codespace é criado automaticamente com base no arquivo `.devcontainer.json` do seu repositório
-- Se não existir, um container padrão será usado
-- Personalize o ambiente editando o arquivo `.devcontainer/devcontainer.json`
+Sem servidor de e-mail configurado, os e-mails do sistema (avisos e recuperação de senha) aparecem no terminal do `runserver`.
 
-### Uso no Navegador Web
+## Servidor de demonstração
 
-#### 1. Interface Principal
-- Editor de código central
-- Terminal integrado na parte inferior
-- Barra lateral com explorador de arquivos, extensões e outras ferramentas
+| Item | Como está |
+| -- | -- |
+| Máquina | Instância EC2 da AWS chamada "Os fofos", na região de Ohio (`us-east-2`) |
+| Endereço | http://3.148.241.152:8000/api/docs/ (Swagger) e http://3.148.241.152:8000/admin/ |
+| Aplicação | Django rodando como serviço do sistema (`pkzlab`), na porta 8000 |
+| Banco | SQLite, carregado com o `popular_demo` |
+| Logins de exemplo | Os do README (ex.: `carla@pkzlab.demo`, senha `senha12345`) |
 
-#### 2. Funcionalidades Principais
-- **Edição de código**: Igual ao VS Code desktop
-- **Terminal**: Acesso completo ao shell do container
-- **Portas**: Exposição automática de portas para aplicações web
-- **Extensões**: Instalação de extensões do VS Code Marketplace
+O servidor é atualizado pelo AWS Systems Manager, que roda os comandos na máquina sem precisar de SSH:
 
-#### 3. Gerenciamento do Codespace
-- Pause/Resume: Ociosos são automaticamente pausados após 30 minutos
-- Configurações: Ajuste de máquina (2 a 32 cores, até 64GB RAM)
-- Delete: Remova codespaces não utilizados para economizar recursos
+1. Copia o banco (`db.sqlite3.antes-deploy-<data>`), para poder voltar atrás.
+2. `git pull` da `main`.
+3. `pip install -r requirements.txt`, `manage.py check` e `manage.py migrate`.
+4. Reinicia o serviço `pkzlab` e confere se ele voltou.
 
-### Uso no Visual Studio Code Desktop
+É um servidor de demonstração, sem dados reais: roda com `DEBUG` ligado e o `runserver` do Django. O que muda para produção (PostgreSQL, HTTPS, gunicorn, chave secreta e rotinas no cron) está no [Plano de Transição](../Transicao/plano_de_transicao.md).
 
-#### 1. Conexão ao Codespace
-- Abra a paleta de comandos (Ctrl+Shift+P)
-- Digite "Codespaces: Connect to Codespace"
-- Selecione o codespace desejado na lista
+## Autor(es)
 
-#### 2. Vantagens sobre a versão web
-- Melhor performance para projetos grandes
-- Integração mais profunda com o sistema operacional
-- Acesso a todas as extensões do VS Code
-
-### Fluxo de Trabalho Recomendado
-
-1. **Inicie seu codespace** a partir do repositório GitHub
-2. **Desenvolva** como faria localmente
-3. **Faça commit** das alterações diretamente para o branch
-4. **Pause/Delete** quando não estiver em uso para economizar recursos
-5. **Recupere** seu ambiente exatamente como estava na próxima sessão
-
-### Dicas Avançadas
-
-#### 1. Configuração Personalizada
-- Use `devcontainer.json` para:
-  - Especificar extensões obrigatórias
-  - Configurar variáveis de ambiente
-  - Definir comandos pós-criação
-
-#### 2. Pré-build de Codespaces
-- Configure pré-builds para reduzir tempo de inicialização
-- Disponível para organizações GitHub
-
-#### 3. Integração com GitHub Actions
-- Automatize testes e builds diretamente no seu fluxo Codespace
-
-### Solução de Problemas Comuns
-
-- **Conexão lenta**: Mude a região do codespace nas configurações
-- **Problemas de extensão**: Algumas extensões podem não funcionar em ambientes remotos
-- **Timeout**: Configure o tempo de inatividade nas configurações
-
-### Conclusão
-O GitHub Codespaces oferece um ambiente de desenvolvimento completo acessível de qualquer lugar, eliminando problemas de configuração de ambiente e permitindo focar no código.
+| Data | Versão | Descrição | Autor(es) |
+| -- | -- | -- | -- |
+| 11/11/2026 | 1.0 | Ambiente de desenvolvimento do grupo e servidor de demonstração na AWS | Vitor Magalhães |

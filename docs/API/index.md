@@ -21,14 +21,27 @@ A documentação abre sem login, mas os dados exigem login (veja abaixo). O serv
 
 ## Autenticação
 
-A API usa o **login por sessão do Django**, o mesmo do painel do administrador. Para testar no Swagger, entre antes em `/admin/` ou em `/api/auth/login/` e volte para `/api/docs/`: o navegador já envia o cookie de sessão.
+A API usa **token JWT** (UC01). O login é `POST /api/token/` com `email` e `password`. A resposta traz um `access`, que vale 30 minutos e vai no cabeçalho `Authorization: Bearer <access>`, e um `refresh`, que vale 7 dias e gera um novo `access` em `POST /api/token/refresh/`. Senha errada e conta inativa dão a mesma resposta (`401`), sem dizer qual falhou.
 
-Sem login, qualquer endpoint responde `403`, com duas exceções que são abertas para o autocadastro (UC02): `POST /api/atletas/` e `POST /api/responsaveis/`.
+Para testar no Swagger, faça o login em `/api/token/`, copie o `access` e cole no botão **Authorize**. O login por sessão do Django (pelo `/admin/` ou por `/api/auth/login/`) também funciona no navegador.
+
+Sem login, os endpoints respondem `401`. São abertos só o login e os fluxos de quem ainda não tem conta: `POST /api/cadastro/` (UC02), `POST /api/atletas/` e `POST /api/responsaveis/` (autocadastro) e a recuperação de senha (UC03).
+
+### Recuperação de senha (UC03)
+
+1. `POST /api/senha/recuperar/` com o `email`. A resposta é sempre a mesma, exista o e-mail ou não, para não revelar quem tem cadastro.
+2. Se o e-mail existir, o sistema envia um link com `uid` e `token`, que vale 1 hora e serve uma vez só.
+3. `POST /api/senha/redefinir/` com `uid`, `token` e a nova `senha`, que passa pelas mesmas regras do cadastro.
+
+Cada IP pode fazer no máximo 5 chamadas por hora a esses dois endpoints. No servidor de demonstração não há servidor de e-mail configurado, então o e-mail com o link aparece no log do servidor.
 
 ## Recursos
 
 | Recurso | Rota | Quem altera | Caso de uso |
 | -- | -- | -- | -- |
+| Login | `/api/token/`, `/api/token/refresh/` | Qualquer um com conta | UC01 |
+| Cadastro | `/api/cadastro/` (`tipo`: `atleta` ou `responsavel`) | Qualquer visitante | UC02 |
+| Recuperação de senha | `/api/senha/recuperar/`, `/api/senha/redefinir/` | Qualquer visitante | UC03 |
 | Especialidades | `/api/especialidades/` | Equipe administrativa | UC18 |
 | Espaços | `/api/espacos/` | Equipe administrativa | UC17 |
 | Serviços | `/api/servicos/` (inativar com agenda futura pede `confirmar=true`) | Equipe administrativa | UC18 |
@@ -52,9 +65,11 @@ As permissões da API vêm dos grupos Django correspondentes aos papéis ativos 
 
 | Grupo | Permissões |
 | -- | -- |
-| Profissional | Consultar cadastros, agendar para atletas e registrar dados técnicos |
-| Recepção | Consultar cadastros, agendar para atletas, gerenciar a agenda e cadastros |
+| Profissional | Consultar cadastros, agendar para atletas e registrar e consultar dados técnicos |
+| Recepção | Consultar cadastros, agendar para atletas, gerenciar a agenda e cadastros. Não vê dados técnicos |
 | Administrador | Todas as permissões, incluindo estrutura e administração do sistema |
+
+Avaliações físicas, planos de treino e evolução são dados sensíveis (RNF03). Quem vê esses dados é a equipe técnica (profissionais e administração), o próprio atleta e o responsável pelos dependentes dele. A recepção recebe lista vazia e `404`.
 
 A inativação da conta remove o usuário dos grupos de papel e, no painel, alerta sobre os agendamentos futuros que exigem revisão. Nos recursos de estrutura, todo usuário logado consulta e só a administração cadastra, altera e apaga. As listas são paginadas (20 por página) e respondem `count`, `next`, `previous` e `results`.
 
@@ -96,26 +111,23 @@ Depois de logada, a responsável cadastra o dependente com `POST /api/atletas/`,
 
 ### Fazer login para as chamadas seguintes
 
-A sessão exige o token CSRF nas chamadas que alteram dados. Com `curl`:
+```bash
+curl -X POST http://127.0.0.1:8000/api/token/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "bia@x.com", "password": "senha12345"}'
+```
+
+Resposta `200`: `{"refresh": "...", "access": "..."}`. Guarde o `access` e envie em todas as chamadas seguintes:
 
 ```bash
-# 1) pega o cookie e o token do formulário de login
-curl -c cookies.txt http://127.0.0.1:8000/api/auth/login/ -o /dev/null
-TOKEN=$(grep csrftoken cookies.txt | awk '{print $7}')
-
-# 2) entra
-curl -b cookies.txt -c cookies.txt -X POST http://127.0.0.1:8000/api/auth/login/ \
-  -d "username=bia@x.com&password=senha12345&csrfmiddlewaretoken=$TOKEN"
-
-# 3) a partir daqui, envie o cookie e o cabeçalho X-CSRFToken
-TOKEN=$(grep csrftoken cookies.txt | awk '{print $7}')
+ACCESS="cole aqui o access"
 ```
 
 ### Criar um agendamento (UC06)
 
 ```bash
-curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/ \
-  -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+curl -H "Authorization: Bearer $ACCESS" -X POST http://127.0.0.1:8000/api/agendamentos/ \
+  -H "Content-Type: application/json" \
   -d '{
     "atleta": 1, "servico": 1, "profissional": 1, "espaco": 1,
     "inicio": "2026-11-16T09:00:00-03:00",
@@ -153,8 +165,8 @@ Se a reserva do equipamento falhar, o agendamento também não é gravado.
 Entrar numa aula é criar um agendamento ligado a ela. Basta mandar a aula: serviço, profissional, sala e horário vêm da própria aula.
 
 ```bash
-curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/ \
-  -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+curl -H "Authorization: Bearer $ACCESS" -X POST http://127.0.0.1:8000/api/agendamentos/ \
+  -H "Content-Type: application/json" \
   -d '{ "atleta": 1, "aula": 3 }'
 ```
 
@@ -167,7 +179,7 @@ curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/ \
 ### Consultar a agenda (UC10)
 
 ```bash
-curl -b cookies.txt "http://127.0.0.1:8000/api/agendamentos/?status=AGENDADO"
+curl -H "Authorization: Bearer $ACCESS" "http://127.0.0.1:8000/api/agendamentos/?status=AGENDADO"
 ```
 
 Cada perfil recebe só a sua parte: o atleta vê os próprios agendamentos, o responsável os dos dependentes, o profissional os seus atendimentos, e a recepção e a administração veem tudo. O filtro `status` aceita `AGENDADO`, `CANCELADO` e `SUBSTITUIDO`.
@@ -176,13 +188,13 @@ Cada perfil recebe só a sua parte: o atleta vê os próprios agendamentos, o re
 
 ```bash
 # cancelar: a justificativa é obrigatória
-curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/1/cancelar/ \
-  -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+curl -H "Authorization: Bearer $ACCESS" -X POST http://127.0.0.1:8000/api/agendamentos/1/cancelar/ \
+  -H "Content-Type: application/json" \
   -d '{"justificativa": "Atleta doente"}'
 
 # reagendar: o original vira SUBSTITUIDO e é criado um novo (201)
-curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/1/reagendar/ \
-  -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+curl -H "Authorization: Bearer $ACCESS" -X POST http://127.0.0.1:8000/api/agendamentos/1/reagendar/ \
+  -H "Content-Type: application/json" \
   -d '{"inicio": "2026-11-17T09:00:00-03:00"}'
 ```
 
@@ -193,11 +205,11 @@ curl -b cookies.txt -X POST http://127.0.0.1:8000/api/agendamentos/1/reagendar/ 
 ### Ler os avisos (UC20)
 
 ```bash
-curl -b cookies.txt "http://127.0.0.1:8000/api/avisos/?lido=false"
-curl -b cookies.txt -X POST http://127.0.0.1:8000/api/avisos/1/lido/ -H "X-CSRFToken: $TOKEN"
+curl -H "Authorization: Bearer $ACCESS" "http://127.0.0.1:8000/api/avisos/?lido=false"
+curl -H "Authorization: Bearer $ACCESS" -X POST http://127.0.0.1:8000/api/avisos/1/lido/
 ```
 
-A API não cria nem apaga avisos: quem cria é o sistema (hoje, ao cancelar um atendimento).
+A API não cria nem apaga avisos: quem cria é o sistema, quando um atendimento é cancelado, uma vaga da lista de espera é oferecida, a aula muda de dia, hora, sala ou professor e 24 horas antes do atendimento (lembrete). Cada aviso também vai por e-mail.
 
 ## Códigos de resposta
 
@@ -205,7 +217,9 @@ A API não cria nem apaga avisos: quem cria é o sistema (hoje, ao cancelar um a
 | -- | -- |
 | `200` / `201` | Sucesso / criado |
 | `400` | Regra de negócio ou dado inválido (o corpo diz o campo). Também ao apagar algo que ainda está em uso (ex.: sala com agendamentos): desative em vez de apagar |
-| `403` | Sem login ou sem permissão para a operação |
+| `401` | Sem login, token vencido ou login recusado |
+| `403` | Sem permissão para a operação |
+| `429` | Muitas chamadas seguidas (recuperação de senha: 5 por hora) |
 | `404` | Não existe ou não pertence ao usuário (para não revelar dados de terceiros) |
 | `405` | Operação não existe para o recurso (ex.: apagar agendamento) |
 
@@ -215,4 +229,8 @@ A API não cria nem apaga avisos: quem cria é o sistema (hoje, ao cancelar um a
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação da página da API (links do Swagger, autenticação, recursos e exemplos) | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 11/11/2026 | 1.1 | Todos os recursos da API na tabela, exemplo de entrada em aula em grupo e erro ao apagar registro em uso | Filipe Andrade |
+<<<<<<< HEAD
 | 11/11/2026 | 1.2 | Filtros da agenda (UC10), aula suspensa (UC21 A2) e confirmação ao inativar serviço (UC18 A1) | Filipe Andrade |
+=======
+| 11/11/2026 | 1.2 | Login por token JWT, cadastro e recuperação de senha, acesso aos dados técnicos (RNF03) e novos códigos de resposta | Vitor Magalhães |
+>>>>>>> 0fedf5d7016483fa5ac71c6a425074532639f88a

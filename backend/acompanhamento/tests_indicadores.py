@@ -119,6 +119,11 @@ class ApiDeIndicadores(ComDados):
         self.assertEqual(self.get(mae.usuario, self.url).status_code, 404)              # não é dependente dela
         self.assertEqual(self.get(atleta("maria", "Maria").usuario, self.url).status_code, 404)
 
+    def test_recepcao_nao_ve_a_evolucao(self):
+        rita = Recepcao.objects.create(funcionario=funcionario("rita", "Rita", "M050")).funcionario.usuario
+        self.assertEqual(self.get(rita, self.url).status_code, 404)  # RNF03: dado técnico é da equipe técnica
+        self.assertEqual(self.get(usuario_com_papel("chefe", "administrador"), self.url).status_code, 200)
+
     def test_periodo_invertido_da_400(self):
         r = self.get(self.joao.usuario, f"{self.url}?de={HOJE}&ate={HOJE - timedelta(days=1)}")
         self.assertEqual(r.status_code, 400)
