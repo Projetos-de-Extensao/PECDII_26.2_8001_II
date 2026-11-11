@@ -22,12 +22,14 @@ title: Iteração 6
 | Atleta no agendamento e visibilidade da agenda por perfil | Todos | Concluída |
 | [Diagramas de sequência](../Elaboracao/diagrama_de_sequencia.md) (seis, de UC01 a UC21) | Todos | Concluída em 03/11 |
 | Testes automáticos dos três apps | Todos | Concluída |
+| Disponibilidade dos profissionais e bloqueios, verificados ao agendar (UC05 e UC07) | Gabriel de Souza | Concluída em 05/11 |
+| Login por token JWT, cadastro e recuperação de senha pela API (UC01 a UC03) | Gabriel de Souza | Concluída em 06/11 |
 
 ## Sprint Retrospective/Review Meeting
 
 ### Dívidas da Iteração
 
-- Disponibilidade e bloqueios, grade de aulas, lista de espera, avaliações e planos de treino ainda não implementados.
+- Grade de aulas, lista de espera, avaliações e planos de treino ainda não implementados.
 - Iterações, transição e README ainda a preencher (issue #47).
 
 ### Riscos Encontrados
