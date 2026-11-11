@@ -31,14 +31,14 @@ Sem login, qualquer endpoint responde `403`, com duas exceções que são aberta
 | -- | -- | -- | -- |
 | Especialidades | `/api/especialidades/` | Equipe administrativa | UC18 |
 | Espaços | `/api/espacos/` | Equipe administrativa | UC17 |
-| Serviços | `/api/servicos/` | Equipe administrativa | UC18 |
+| Serviços | `/api/servicos/` (inativar com agenda futura pede `confirmar=true`) | Equipe administrativa | UC18 |
 | Equipamentos | `/api/equipamentos/` | Equipe administrativa | UC17 |
 | Profissionais | `/api/profissionais/` | Só consulta (cadastro pelo painel) | UC04 |
 | Atletas | `/api/atletas/` | Qualquer visitante cria; cada um vê o que lhe cabe | UC02 |
 | Responsáveis | `/api/responsaveis/` | Qualquer visitante cria | UC02 |
-| Agendamentos | `/api/agendamentos/` (+ `/{id}/cancelar/`, `/{id}/reagendar/`, `/{id}/atendimento/`) | Atleta, responsável, equipe | UC06, UC08, UC09, UC10, UC11 |
+| Agendamentos | `/api/agendamentos/` (+ `/{id}/cancelar/`, `/{id}/reagendar/`, `/{id}/atendimento/`; filtros `status`, `de`, `ate`, `profissional`, `espaco`) | Atleta, responsável, equipe | UC06, UC08, UC09, UC10, UC11 |
 | Horários livres | `/api/horarios-livres/?servico=&dia=` | Só consulta | UC06, UC07 |
-| Grade de aulas | `/api/aulas/` | Equipe administrativa | UC21 |
+| Grade de aulas | `/api/aulas/` (`suspensa` = professor ou sala bloqueados naquele dia) | Equipe administrativa | UC21 |
 | Lista de espera | `/api/lista-espera/` (+ `/{id}/confirmar/`, `/{id}/recusar/`, `/{id}/sair/`) | Atleta, responsável, equipe | UC19 |
 | Atendimentos | `/api/atendimentos/` | Só consulta (registro pelo agendamento) | UC11 |
 | Disponibilidade | `/api/disponibilidades/` | O próprio profissional e a administração | UC05 |
@@ -215,3 +215,4 @@ A API não cria nem apaga avisos: quem cria é o sistema (hoje, ao cancelar um a
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação da página da API (links do Swagger, autenticação, recursos e exemplos) | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 11/11/2026 | 1.1 | Todos os recursos da API na tabela, exemplo de entrada em aula em grupo e erro ao apagar registro em uso | Filipe Andrade |
+| 11/11/2026 | 1.2 | Filtros da agenda (UC10), aula suspensa (UC21 A2) e confirmação ao inativar serviço (UC18 A1) | Filipe Andrade |

@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
@@ -16,13 +17,19 @@ from pessoas.permissoes import tem_permissao
 from .models import Agendamento, Atendimento, Aula, Aviso, Bloqueio, Disponibilidade, ListaEspera
 from .permissoes import ProfissionalMantemAPropria
 from .serializers import (AgendamentoSerializer, AtendimentoSerializer, AulaSerializer, AvisoSerializer,
-                          BloqueioSerializer, CancelarSerializer, DisponibilidadeSerializer,
+                          BloqueioSerializer, CancelarSerializer, DisponibilidadeSerializer, FiltroAgendaSerializer,
                           HorariosLivresQuerySerializer, HorariosLivresSerializer, ListaEsperaSerializer,
                           ReagendarSerializer, RegistrarAtendimentoSerializer, erro_da_api)
 from .perfis import pode_agendar_para, pode_registrar_atendimento, profissional_de, ve_a_agenda_toda
 
 
-@extend_schema(parameters=[OpenApiParameter("status", str, enum=Agendamento.Status.values)])
+@extend_schema_view(list=extend_schema(parameters=[
+    OpenApiParameter("status", str, enum=Agendamento.Status.values),
+    OpenApiParameter("de", OpenApiTypes.DATE, description="A partir deste dia (AAAA-MM-DD)."),
+    OpenApiParameter("ate", OpenApiTypes.DATE, description="Até este dia (AAAA-MM-DD)."),
+    OpenApiParameter("profissional", int, description="ID do profissional."),
+    OpenApiParameter("espaco", int, description="ID da sala."),
+]))
 class AgendamentoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                          viewsets.GenericViewSet):
     # Sem editar nem apagar: agendamento muda só por cancelar (UC09) ou reagendar (UC08).
@@ -46,6 +53,19 @@ class AgendamentoViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
             qs = qs.filter(pode_ver)
         if s := self.request.query_params.get("status"):
             qs = qs.filter(status=s)
+        if self.action == "list":
+            # UC10 passo 2: filtros por período e, para quem vê a agenda toda, por profissional e sala
+            filtro = FiltroAgendaSerializer(data=self.request.query_params)
+            filtro.is_valid(raise_exception=True)
+            f = filtro.validated_data
+            if "de" in f:
+                qs = qs.filter(inicio__date__gte=f["de"])
+            if "ate" in f:
+                qs = qs.filter(inicio__date__lte=f["ate"])
+            if "profissional" in f:
+                qs = qs.filter(profissional_id=f["profissional"])
+            if "espaco" in f:
+                qs = qs.filter(espaco_id=f["espaco"])
         return qs
 
     @extend_schema(request=CancelarSerializer, responses=AgendamentoSerializer, summary="Cancela o agendamento (UC09)")

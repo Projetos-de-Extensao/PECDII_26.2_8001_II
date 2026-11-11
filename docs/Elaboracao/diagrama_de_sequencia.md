@@ -125,7 +125,7 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 - **Pré-condições:** Serviço, espaço e profissional ativos e configurados.
 - **Pós-condições:** Turnos e bloqueios persistidos; agendamento persistido no banco de dados e vaga ocupada no horário/espaço.
 - **Gatilho de início:** Cadastro de turno (`POST /api/disponibilidades/`), registro de bloqueio (`POST /api/bloqueios/`), consulta de horários livres ou submissão de `POST /api/agendamentos/`.
-- **Nota de escopo (issue #32):** nesta versão apenas o administrador cria bloqueios. O bloqueio feito pelo próprio profissional (passo 3 do fluxo principal do `UC05`) e o uso de turnos e bloqueios na verificação de disponibilidade (`UC07`) ainda não estão implementados.
+- **Nota de escopo (issue #32):** nesta versão apenas o administrador cria bloqueios; o bloqueio feito pelo próprio profissional (passo 3 do fluxo principal do `UC05`) ainda não está implementado. Turnos e bloqueios já entram na verificação de disponibilidade (`UC07`) ao agendar e ao listar horários livres.
 
 ##### 2.4 Participantes (Lifelines)
 
@@ -181,7 +181,7 @@ Definir um padrão para elaboração e registro dos Diagramas de Sequência, gar
 
 - **Imagem do Diagrama de Sequência:** ![Disponibilidade, Bloqueios e Agendamento](./seq_02_disponibilidade_agendamento.png)
 - **Arquivo fonte (PlantUML):** [seq_02_disponibilidade_agendamento.puml](./seq_02_disponibilidade_agendamento.puml)
-- **Versão:** 1.1 (04/11/2026: inclusão de `Disponibilidade` e `Bloqueio` com alerta de agendamentos afetados, issue #32; correção do status inicial para `AGENDADO`)
+- **Versão:** 1.2 (11/11/2026: nota de escopo atualizada, a verificação de disponibilidade já usa turnos e bloqueios). 1.1 (04/11/2026: inclusão de `Disponibilidade` e `Bloqueio` com alerta de agendamentos afetados, issue #32; correção do status inicial para `AGENDADO`)
 
 ### 3. Ciclo do Agendamento (UC08, UC09, UC10)
 

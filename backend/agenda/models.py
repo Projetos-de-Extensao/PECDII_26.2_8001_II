@@ -92,6 +92,8 @@ class Aula(models.Model):
         reativou = gravada is not None and self.ativo and not gravada["ativo"]
         if self.ativo and (gravada is None or self._mudou_o_horario(gravada) or reativou):
             inicio, fim = self.inicio, self.fim
+            if not self.servico.ativo:
+                adicionar_erro("servico", "Este serviço está inativo.")
             if inicio <= (agora or timezone.now()):
                 adicionar_erro("hora_inicio", "Esse horário já passou.")
             if not Disponibilidade.objects.filter(profissional_id=self.profissional_id,
@@ -150,6 +152,14 @@ class Aula(models.Model):
     @property
     def lotada(self):
         return self.vagas_restantes <= 0 if self.servico_id else True
+
+    @property
+    def suspensa(self):
+        # UC21 A2: professor ou sala com bloqueio no horário = naquele dia a aula não acontece
+        if not (self.servico_id and self.dia and self.hora_inicio):
+            return False
+        alvo = models.Q(profissional_id=self.profissional_id) | models.Q(espaco_id=self.espaco_id)
+        return Bloqueio.objects.filter(alvo, inicio__lt=self.fim, fim__gt=self.inicio).exists()
 
     @transaction.atomic
     def save(self, *args, **kwargs):
@@ -226,6 +236,8 @@ class Agendamento(models.Model):
 
         if self.servico_id and self.servico.em_grupo and not self.aula_id:
             adicionar_erro("aula", "Este serviço é em grupo: escolha uma aula da grade.")
+        if self.pk is None and self.servico_id and not self.servico.ativo:
+            adicionar_erro("servico", "Este serviço está inativo.")  # UC18: inativo some dos agendamentos novos
 
         if self.aula_id:
             aula = self.aula
@@ -347,6 +359,9 @@ class Agendamento(models.Model):
         # UC08: o original fica como substituído (não é apagado) e o novo aponta para ele
         if self.status != self.Status.AGENDADO:
             raise ValidationError("Só dá para reagendar um agendamento com status Agendado.")
+        if self.aula_id:
+            raise ValidationError("Aula em grupo não se reagenda: cancele este agendamento e entre em outra "
+                                  "aula da grade.")
         self.status = self.Status.SUBSTITUIDO
         self.save(update_fields=["status"])
         novo = Agendamento(atleta=self.atleta, servico=self.servico, profissional=self.profissional,
@@ -362,6 +377,8 @@ class Agendamento(models.Model):
         return quem_avisar(self.atleta)
 
     def enviar_lembrete(self):
+        if self.aula_id and self.aula.suspensa:
+            return self.avisar_suspensao()  # UC21 A2: em vez de "venha", avisa que não vai ter aula
         quando = timezone.localtime(self.inicio)
         texto = (f"Lembrete: {self.servico} com {self.profissional.nome} em {quando:%d/%m às %H:%M}, "
                  f"{self.espaco}. Protocolo {self.protocolo}.")
@@ -370,12 +387,22 @@ class Agendamento(models.Model):
         self.lembrete_enviado_em = timezone.now()
         self.save(update_fields=["lembrete_enviado_em"])
 
+    def avisar_suspensao(self):
+        quando = timezone.localtime(self.inicio)
+        texto = (f"A aula de {self.servico} de {quando:%d/%m às %H:%M} está suspensa: não vai ter aula nesse dia. "
+                 f"Protocolo {self.protocolo}.")
+        for usuario in self.quem_recebe_avisos():
+            Aviso.avisar(usuario, texto)
+        self.lembrete_enviado_em = timezone.now()  # não manda mais o lembrete de "venha" para esse dia
+        self.save(update_fields=["lembrete_enviado_em"])
+
     @classmethod
     def precisam_de_lembrete(cls, agora=None):
-        # marcados, sem lembrete ainda, e que começam nas próximas 24 horas
+        # marcados, sem lembrete ainda, e que começam nas próximas 24 horas (aula desativada não tem lembrete)
         agora = agora or timezone.now()
         return cls.objects.filter(status=cls.Status.AGENDADO, lembrete_enviado_em__isnull=True,
-                                  inicio__gt=agora, inicio__lte=agora + cls.ANTECEDENCIA_DO_LEMBRETE)
+                                  inicio__gt=agora, inicio__lte=agora + cls.ANTECEDENCIA_DO_LEMBRETE
+                                  ).exclude(aula__ativo=False)
 
     @classmethod
     def enviar_lembretes(cls, agora=None):
@@ -461,9 +488,20 @@ class ListaEspera(models.Model):
             if Agendamento.objects.filter(atleta_id=self.atleta_id, status=Agendamento.Status.AGENDADO,
                                           inicio__lt=fim, fim__gt=self.inicio).exists():
                 erros.setdefault("atleta", []).append("Este atleta já tem um agendamento nesse horário.")
+        if not self.servico.ativo:
+            erros.setdefault("servico", []).append("Este serviço está inativo.")
         # pré-condição do UC19: só entra na fila quem quer algo que está ocupado
         if self.aula_id:
+            if not self.aula.ativo:
+                erros.setdefault("aula", []).append("Esta aula foi desativada.")
             ocupado = self.aula.lotada
+        elif self.servico.em_grupo:
+            erros.setdefault("aula", []).append("Este serviço é em grupo: escolha uma aula da grade.")
+            ocupado = True  # não é caso de "horário livre"
+        elif self._profissional_em_aula(fim):
+            # a aula em grupo ocupa o profissional; esse horário não vai abrir para atendimento individual
+            erros.setdefault("profissional", []).append("O profissional dá uma aula em grupo nesse horário.")
+            ocupado = True
         else:
             ocupado = (Agendamento.objects.filter(status=Agendamento.Status.AGENDADO, aula__isnull=True,
                                                   profissional_id=self.profissional_id,
@@ -475,6 +513,11 @@ class ListaEspera(models.Model):
             erros.setdefault("inicio", []).append("Esse horário está livre: dá para agendar direto.")
         if erros:
             raise ValidationError(erros)
+
+    def _profissional_em_aula(self, fim):
+        inicio_local, fim_local = timezone.localtime(self.inicio), timezone.localtime(fim)
+        return Aula.objects.filter(ativo=True, profissional_id=self.profissional_id, dia=inicio_local.date(),
+                                   hora_inicio__lt=fim_local.time(), hora_fim__gt=inicio_local.time()).exists()
 
     def atleta_ocupado(self):
         # A1: se ele já marcou outro atendimento nesse horário, não adianta oferecer
@@ -681,6 +724,15 @@ class Bloqueio(models.Model):
             raise ValidationError("Informe um só alvo: profissional, espaço ou equipamento.")
         if self.inicio and self.fim and self.fim <= self.inicio:
             raise ValidationError({"fim": "O fim precisa ser depois do início."})
+
+    def save(self, *args, **kwargs):
+        novo = self.pk is None
+        super().save(*args, **kwargs)
+        if novo and (self.profissional_id or self.espaco_id):
+            # UC21 A2: alunos das aulas atingidas recebem o aviso de aula suspensa
+            atingidos = self.agendamentos_afetados().filter(aula__isnull=False, inicio__gt=timezone.now())
+            for agendamento in atingidos.select_related("atleta__usuario", "atleta__responsavel__usuario", "servico"):
+                agendamento.avisar_suspensao()
 
     def agendamentos_afetados(self):
         # UC05 A1 e UC17 A1: os agendamentos ainda marcados que caem dentro do bloqueio

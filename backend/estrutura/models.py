@@ -10,6 +10,8 @@ Este app não depende de nenhum outro: pessoas e agenda é que dependem dele.
 """
 from datetime import timedelta
 
+from django.core.validators import MinValueValidator
+
 from django.db import models
 from django.utils import timezone
 
@@ -33,7 +35,8 @@ class Espaco(models.Model):
         Especialidade, blank=True, related_name="espacos",
         help_text="Quais especialidades usam esta sala. Ex.: Consultório 1 atende Nutricionista.")
     capacidade = models.PositiveIntegerField(
-        default=1, help_text="Quantos atendimentos ou turmas cabem ao mesmo tempo nesta sala.")
+        default=1, validators=[MinValueValidator(1)],
+        help_text="Quantos atendimentos ou turmas cabem ao mesmo tempo nesta sala.")
     ativo = models.BooleanField(default=True)
 
     class Meta:
@@ -48,9 +51,9 @@ class Servico(models.Model):
     # A modalidade: "Treino funcional" (individual, 60 min), "Pilates" (grupo de 10, 50 min)...
     nome = models.CharField(max_length=100)
     especialidade = models.ForeignKey(Especialidade, on_delete=models.PROTECT, related_name="servicos")
-    duracao_minutos = models.PositiveIntegerField(default=60, help_text="O fim do atendimento é calculado por aqui.")
+    duracao_minutos = models.PositiveIntegerField(default=60, validators=[MinValueValidator(1)], help_text="O fim do atendimento é calculado por aqui.")
     vagas = models.PositiveIntegerField(
-        default=1, help_text="Atletas por horário. 1 = individual (ex.: personal). "
+        default=1, validators=[MinValueValidator(1)], help_text="Atletas por horário. 1 = individual (ex.: personal). "
                              "Mais de 1 = aula em grupo, marcada pela grade de aulas (ex.: Pilates com 10).")
     espacos = models.ManyToManyField(
         Espaco, blank=True, related_name="servicos",

@@ -9,6 +9,7 @@ ItemDoPlano      um exercício dentro do plano, com séries, repetições e carg
 Este app usa pessoas (Atleta, Profissional); nenhum outro app depende dele.
 """
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -18,7 +19,8 @@ TESTES = ("velocidade", "forca", "resistencia", "agilidade")
 
 
 def _resultado(help_text):
-    return models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True, help_text=help_text)
+    return models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True, help_text=help_text,
+                               validators=[MinValueValidator(0)])  # tempo, carga e distância não são negativos
 
 
 class AvaliacaoFisica(models.Model):
@@ -38,6 +40,8 @@ class AvaliacaoFisica(models.Model):
         ordering = ["-data", "-criado_em"]
 
     def clean(self):
+        if self.data and self.data > timezone.localdate():
+            raise ValidationError({"data": "A data da avaliação não pode ser no futuro."})
         if all(getattr(self, teste) is None for teste in TESTES):
             raise ValidationError("Informe o resultado de pelo menos um teste.")
 
@@ -127,8 +131,8 @@ class ItemDoPlano(models.Model):
     plano = models.ForeignKey(PlanoTreino, on_delete=models.CASCADE, related_name="itens")
     exercicio = models.ForeignKey(Exercicio, on_delete=models.PROTECT, related_name="itens")
     ordem = models.PositiveSmallIntegerField(default=1)
-    series = models.PositiveSmallIntegerField()
-    repeticoes = models.PositiveSmallIntegerField()
+    series = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+    repeticoes = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
     carga = models.CharField(max_length=50, blank=True, help_text="Ex.: 20 kg, peso do corpo, elástico médio.")
 
     class Meta:

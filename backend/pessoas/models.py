@@ -154,6 +154,8 @@ class Atleta(models.Model):
     def clean(self):
         # ECA: menor de 18 anos só com responsável. Fica na classe para valer em qualquer porta
         # (cadastro, painel do admin, API), e não só no cadastros.py.
+        if self.data_nascimento and self.data_nascimento > date.today():
+            raise ValidationError({"data_nascimento": "A data de nascimento não pode ser no futuro."})
         if self.data_nascimento and self.menor_de_idade and not self.responsavel_id:
             raise ValidationError({"responsavel": "Atleta menor de idade exige um responsável."})
 

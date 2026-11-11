@@ -62,12 +62,13 @@ class AgendamentoSerializer(serializers.ModelSerializer):
 class AulaSerializer(serializers.ModelSerializer):
     vagas_restantes = serializers.IntegerField(read_only=True)
     lotada = serializers.BooleanField(read_only=True)
+    suspensa = serializers.BooleanField(read_only=True, help_text="Professor ou sala bloqueados nesse dia (UC21 A2).")
 
     class Meta:
         model = Aula
         fields = ["id", "servico", "profissional", "espaco", "dia", "hora_inicio", "hora_fim",
-                  "ativo", "vagas_restantes", "lotada", "criado_em"]
-        read_only_fields = ["hora_fim", "criado_em", "vagas_restantes", "lotada"]
+                  "ativo", "vagas_restantes", "lotada", "suspensa", "criado_em"]
+        read_only_fields = ["hora_fim", "criado_em", "vagas_restantes", "lotada", "suspensa"]
 
     def validate(self, attrs):
         usuario = self.context["request"].user
@@ -136,6 +137,19 @@ class RegistrarAtendimentoSerializer(serializers.Serializer):
 class HorariosLivresQuerySerializer(serializers.Serializer):
     servico = serializers.PrimaryKeyRelatedField(queryset=Servico.objects.filter(ativo=True))
     dia = serializers.DateField()
+
+
+class FiltroAgendaSerializer(serializers.Serializer):
+    # UC10 passo 2: período e, para quem vê a agenda toda, profissional e sala
+    de = serializers.DateField(required=False)
+    ate = serializers.DateField(required=False)
+    profissional = serializers.IntegerField(required=False, min_value=1)
+    espaco = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, attrs):
+        if attrs.get("de") and attrs.get("ate") and attrs["de"] > attrs["ate"]:
+            raise serializers.ValidationError({"ate": "A data final precisa ser depois da inicial."})
+        return attrs
 
 
 class HorarioLivreSerializer(serializers.Serializer):
