@@ -26,11 +26,7 @@ A fase de Transição entrega o sistema ao ambiente de produção e aos usuário
 
 ## 2. Plano de implantação
 
-<<<<<<< HEAD
-1. **Congelar a versão:** rodar `python manage.py test` (todos os apps) e criar uma tag no Git.
-=======
 1. **Congelar a versão:** rodar `python manage.py test` (todos os apps; o GitHub Actions roda o mesmo a cada push) e criar uma tag no Git.
->>>>>>> 0fedf5d7016483fa5ac71c6a425074532639f88a
 2. **Preparar o servidor:** Python 3.12, ambiente virtual e `pip install -r backend/requirements.txt`.
 3. **Configurar o ambiente:** `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` e banco; depois `python manage.py collectstatic`.
 4. **Aplicar as migrações:** `python manage.py migrate`. A migração `estrutura/0002` já cria as quatro especialidades iniciais. A migração `agenda/0004` para e avisa se houver agendamentos antigos sem atleta; nesse caso, preencher o atleta de cada um antes de repetir. A migração `agenda/0010` transforma cada inscrição confirmada num agendamento da aula e depois apaga a tabela de inscrições (entrar numa aula passou a ser um agendamento da aula, UC06 A2); ninguém sai da turma.
@@ -89,13 +85,10 @@ Os testes automáticos já cobrem estas regras (<code>python manage.py test</cod
 
 ## 5. Fora do aceite desta versão
 
-<<<<<<< HEAD
-Previstos nos documentos, mas ainda não implementados no back-end: agendamento recorrente (UC06 A3 e UC09 A1), aula que se repete toda semana dentro de uma vigência (UC21, hoje cada aula é de um dia), bloqueio registrado pelo próprio profissional (UC05 passo 3, hoje só a administração registra) e integração financeira (BS16).
-=======
+- **Previstos nos documentos, mas ainda não implementados no back-end:** agendamento recorrente (UC06 A3 e UC09 A1), aula que se repete toda semana dentro de uma vigência (UC21, hoje cada aula é de um dia) e bloqueio registrado pelo próprio profissional (UC05 passo 3, hoje só a administração registra).
 - **Integração com o sistema financeiro (BS16):** prevista nos documentos, fora do escopo desta versão.
 - **Front-end:** a entrega é a API REST; o aceite é feito pelo Swagger e pelo painel do administrador.
 - **Envio real de e-mail:** depende de um servidor SMTP do CT (seção 1). Até lá, os e-mails aparecem no log do servidor.
->>>>>>> 0fedf5d7016483fa5ac71c6a425074532639f88a
 
 ## 6. Critérios de aceite e pós-entrega
 
@@ -107,8 +100,5 @@ Previstos nos documentos, mas ainda não implementados no back-end: agendamento 
 | Data | Versão | Descrição | Autor(es) |
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação do plano de implantação e dos testes de aceitação | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
-<<<<<<< HEAD
 | 11/11/2026 | 1.1 | Variáveis de ambiente do servidor, cron das rotinas (UC19 e UC20), migração das inscrições, `STATIC_ROOT` e seção 5 atualizada com o que de fato falta | Filipe Andrade |
-=======
-| 11/11/2026 | 1.1 | Cenários de aceite das funcionalidades novas (AC14 a AC22), treinamento por perfil, e-mail e escopo atualizados | Vitor Magalhães |
->>>>>>> 0fedf5d7016483fa5ac71c6a425074532639f88a
+| 11/11/2026 | 1.2 | Cenários de aceite das funcionalidades novas (AC14 a AC22), treinamento por perfil, e-mail e escopo atualizados | Vitor Magalhães |

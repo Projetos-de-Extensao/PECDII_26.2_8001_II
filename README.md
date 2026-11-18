@@ -29,7 +29,7 @@ Documentação completa (requisitos, casos de uso, diagramas, iterações e tran
 
 ## Instalação
 
-**Linguagem e frameworks:** Python 3.12, Django 4.2, Django REST Framework e drf-spectacular.
+**Linguagem e frameworks:** Python 3.12, Django 5.2, Django REST Framework e drf-spectacular.
 **Banco:** PostgreSQL (versão 14 ou mais nova).
 
 ### 1. Preparar o PostgreSQL
