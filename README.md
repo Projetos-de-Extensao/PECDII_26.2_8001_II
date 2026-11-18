@@ -10,6 +10,8 @@ Back-end (API REST) do **PKZ LAB**, um centro de treinamento de performance na B
 
 Documentação completa (requisitos, casos de uso, diagramas, iterações e transição): https://projetos-de-extensao.github.io/PECDII_26.2_8001_II/
 
+Apresentação: https://claude.ai/artifact/32FhUQJ2Kbw8u9FE4AfG4u#slide-fe96a1f8a861
+
 ### O que já funciona
 
 - **Login e cadastro (UC01 a UC03):** login por e-mail com token JWT, autocadastro de atleta e responsável legal (menor de 18 anos exige responsável) com registro do consentimento LGPD e recuperação de senha por link com validade de 1 hora. A equipe do CT (funcionário com matrícula e papéis Profissional, Recepção e Administrador) é cadastrada pelo painel do administrador.
