@@ -31,8 +31,21 @@ Apresentação: https://claude.ai/artifact/32FhUQJ2Kbw8u9FE4AfG4u#slide-fe96a1f8
 
 ## Instalação
 
-**Linguagem e frameworks:** Python 3.12, Django 4.2, Django REST Framework e drf-spectacular.
-**Banco:** SQLite (arquivo `backend/db.sqlite3`, criado pelo `migrate`).
+**Linguagem e frameworks:** Python 3.12, Django 5.2, Django REST Framework e drf-spectacular.
+**Banco:** PostgreSQL (versão 14 ou mais nova).
+
+### 1. Preparar o PostgreSQL
+
+Instale o PostgreSQL (macOS: `brew install postgresql@17` e `brew services start postgresql@17`; Ubuntu: `sudo apt install postgresql`; Windows: instalador do site postgresql.org). Depois crie o usuário e o banco do projeto, como superusuário do PostgreSQL (no Ubuntu, `sudo -u postgres psql`; no macOS, `psql -d postgres`):
+
+```sql
+CREATE ROLE pkzlab LOGIN CREATEDB PASSWORD 'pkzlab';
+CREATE DATABASE pkzlab OWNER pkzlab;
+```
+
+O `CREATEDB` é para os testes, que criam e apagam um banco próprio (`test_pkzlab`).
+
+### 2. Rodar o projeto
 
 ```bash
 python3 -m venv venv
@@ -46,6 +59,16 @@ python manage.py runserver
 
 - Painel do administrador: http://127.0.0.1:8000/admin/
 - Documentação interativa da API (Swagger): http://127.0.0.1:8000/api/docs/ (também `/api/redoc/` e `/api/schema/`)
+
+Sem nenhuma variável, o projeto conecta em `pkzlab@localhost:5432/pkzlab` com a senha `pkzlab`, que é o banco criado no passo 1. Em outro banco ou servidor, defina as variáveis antes de rodar:
+
+| Variável | Padrão |
+| -- | -- |
+| `POSTGRES_DB` | `pkzlab` |
+| `POSTGRES_USER` | `pkzlab` |
+| `POSTGRES_PASSWORD` | `pkzlab` (no servidor, use uma senha forte) |
+| `POSTGRES_HOST` | `localhost` |
+| `POSTGRES_PORT` | `5432` |
 
 Para chamar a API, faça login em `POST /api/token/` com `email` e `password` e envie o token recebido no cabeçalho `Authorization: Bearer <token>`. No Swagger, use o botão **Authorize**. O login por sessão do Django (pelo `/admin/` ou por `/api/auth/login/`) também funciona.
 
@@ -74,6 +97,8 @@ O comando cria salas, serviços, equipamentos, a equipe com os turnos de atendim
 | `ana@pkzlab.demo` | responsável pelo atleta menor `lucas@pkzlab.demo` |
 
 ### Testes
+
+Com o PostgreSQL rodando:
 
 ```bash
 cd backend

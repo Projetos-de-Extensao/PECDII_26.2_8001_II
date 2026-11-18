@@ -16,6 +16,26 @@ concurrency:
 jobs:
   testes:
     runs-on: ubuntu-latest
+    # os testes rodam no mesmo banco do servidor (PostgreSQL)
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pkzlab
+          POSTGRES_USER: pkzlab
+          POSTGRES_PASSWORD: pkzlab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pkzlab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_DB: pkzlab
+      POSTGRES_USER: pkzlab
+      POSTGRES_PASSWORD: pkzlab
+      POSTGRES_HOST: localhost
     defaults:
       run:
         working-directory: backend

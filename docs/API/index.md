@@ -229,8 +229,5 @@ A API não cria nem apaga avisos: quem cria é o sistema, quando um atendimento 
 | -- | -- | -- | -- |
 | 07/11/2026 | 1.0 | Criação da página da API (links do Swagger, autenticação, recursos e exemplos) | Gabriel de Souza, Vitor Luiz Zanconato, Vitor Magalhães e Filipe Andrade |
 | 11/11/2026 | 1.1 | Todos os recursos da API na tabela, exemplo de entrada em aula em grupo e erro ao apagar registro em uso | Filipe Andrade |
-<<<<<<< HEAD
 | 11/11/2026 | 1.2 | Filtros da agenda (UC10), aula suspensa (UC21 A2) e confirmação ao inativar serviço (UC18 A1) | Filipe Andrade |
-=======
-| 11/11/2026 | 1.2 | Login por token JWT, cadastro e recuperação de senha, acesso aos dados técnicos (RNF03) e novos códigos de resposta | Vitor Magalhães |
->>>>>>> 0fedf5d7016483fa5ac71c6a425074532639f88a
+| 11/11/2026 | 1.3 | Login por token JWT, cadastro e recuperação de senha, acesso aos dados técnicos (RNF03) e novos códigos de resposta | Vitor Magalhães |
